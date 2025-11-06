@@ -1,17 +1,46 @@
 using System.Text;
+using Asp.Versioning;
 using EVRentalSystem.Application.Interfaces;
 using EVRentalSystem.Infrastructure.Data;
 using EVRentalSystem.Infrastructure.Services;
+using EVRentalSystem.API.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File(
+        path: "logs/evrentalsystem-.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+try
+{
+    Log.Information("Starting EV Rental System API");
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add Serilog
+builder.Host.UseSerilog();
+
 // Add DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    // Suppress pending model changes warning (indexes will be applied on next migration)
+    options.ConfigureWarnings(warnings =>
+        warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+});
 
 // Add Services
 builder.Services.AddScoped<IJwtService, JwtService>();
@@ -24,6 +53,25 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 // Add Controllers
 builder.Services.AddControllers();
+
+// Add API Versioning
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+    options.ApiVersionReader = new UrlSegmentApiVersionReader();
+}).AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+
+// Add Response Compression
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
 
 // Add JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -44,15 +92,33 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// Add CORS
+// Add CORS - Configure based on environment
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    if (builder.Environment.IsDevelopment())
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+        // Development: Allow all for easier testing
+        options.AddPolicy("AllowAll", policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        });
+    }
+    else
+    {
+        // Production: Restrict to specific origins
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+            ?? new[] { "https://yourdomain.com" };
+
+        options.AddPolicy("AllowAll", policy =>
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        });
+    }
 });
 
 // Add Swagger
@@ -62,12 +128,40 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "EV Rental System API",
-        Version = "v1",
-        Description = "API cho hệ thống thuê xe điện tại điểm thuê",
+        Version = "v1.0",
+        Description = @"
+# EV Rental System API v1.0
+
+API cho hệ thống thuê xe điện tại điểm thuê.
+
+## Features
+- ✅ JWT Authentication
+- ✅ Role-based Authorization (Renter, StationStaff, Admin)
+- ✅ Vehicle Booking & Rental Management
+- ✅ Payment Processing
+- ✅ Vehicle Inspection Tracking
+- ✅ Station Management
+
+## Authentication
+Sử dụng JWT Bearer token trong header:
+```
+Authorization: Bearer {your_token}
+```
+
+## Rate Limiting
+- Free tier: 100 requests/hour
+- Premium tier: 1000 requests/hour
+",
         Contact = new OpenApiContact
         {
-            Name = "EV Rental System",
-            Email = "support@evrentalsystem.com"
+            Name = "EV Rental System Support",
+            Email = "support@evrentalsystem.com",
+            Url = new Uri("https://evrentalsystem.com")
+        },
+        License = new OpenApiLicense
+        {
+            Name = "MIT License",
+            Url = new Uri("https://opensource.org/licenses/MIT")
         }
     });
 
@@ -110,6 +204,18 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Add Response Compression (must be early in pipeline)
+app.UseResponseCompression();
+
+// Add Serilog request logging
+app.UseSerilogRequestLogging();
+
+// Add Input Sanitization (must be before authentication)
+app.UseInputSanitization();
+
+// Add Global Exception Handler (must be early in pipeline)
+app.UseGlobalExceptionHandler();
+
 // Disable HTTPS redirection in development for easier testing
 // app.UseHttpsRedirection();
 app.UseCors("AllowAll");
@@ -124,7 +230,8 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
-        context.Database.EnsureCreated();
+        // Use Migrate() instead of EnsureCreated() to apply migrations
+        context.Database.Migrate();
         DbInitializer.Initialize(context);
     }
     catch (Exception ex)
@@ -174,3 +281,13 @@ lifetime.ApplicationStarted.Register(() =>
 });
 
 app.Run();
+
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
