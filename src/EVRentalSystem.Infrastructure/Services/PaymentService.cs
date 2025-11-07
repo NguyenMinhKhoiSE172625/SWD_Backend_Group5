@@ -26,10 +26,22 @@ public class PaymentService : IPaymentService
 
         var paymentType = (PaymentType)request.Type;
 
+        // If userId is 0 or not provided, fetch from Rental
+        var actualUserId = userId;
+        if (userId == 0 && request.RentalId.HasValue)
+        {
+            var rental = await _context.Rentals.FindAsync(request.RentalId.Value);
+            if (rental == null)
+            {
+                return null;
+            }
+            actualUserId = rental.UserId;
+        }
+
         var payment = new Payment
         {
             PaymentCode = GeneratePaymentCode(),
-            UserId = userId,
+            UserId = actualUserId,
             RentalId = request.RentalId,
             Amount = request.Amount,
             Type = paymentType,

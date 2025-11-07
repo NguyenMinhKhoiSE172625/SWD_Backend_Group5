@@ -31,15 +31,13 @@ public class RentalsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateRentalRequest request)
     {
         var staffId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        
-        // For walk-in customers, userId should be provided in the request
-        // For now, we'll use a simple approach - you might want to add userId to the request
-        var userId = request.BookingId.HasValue 
-            ? 0 // Will be fetched from booking
-            : int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        
+
+        // UserId will be fetched from booking if BookingId exists
+        // Otherwise, use UserId from request (for walk-in customers)
+        var userId = request.UserId ?? 0;
+
         var result = await _rentalService.CreateRentalAsync(userId, staffId, request);
-        
+
         if (result == null)
         {
             return BadRequest(ApiResponse<RentalResponse>.ErrorResponse("Không thể tạo giao dịch thuê xe"));

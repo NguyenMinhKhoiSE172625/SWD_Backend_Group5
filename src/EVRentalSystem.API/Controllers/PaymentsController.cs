@@ -31,13 +31,12 @@ public class PaymentsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreatePaymentRequest request)
     {
         var staffId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        
-        // userId should be provided in the request or fetched from rental
-        // For simplicity, we'll assume it's the current user for now
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        
+
+        // UserId will be fetched from Rental in PaymentService
+        var userId = 0;
+
         var result = await _paymentService.CreatePaymentAsync(userId, staffId, request);
-        
+
         if (result == null)
         {
             return BadRequest(ApiResponse<PaymentResponse>.ErrorResponse("Không thể tạo thanh toán"));

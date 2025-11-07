@@ -50,6 +50,8 @@ builder.Services.AddScoped<IRentalService, RentalService>();
 builder.Services.AddScoped<IVehicleService, VehicleService>();
 builder.Services.AddScoped<IStationService, StationService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 // Add Controllers
 builder.Services.AddControllers();

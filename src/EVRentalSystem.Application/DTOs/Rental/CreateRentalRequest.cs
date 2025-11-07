@@ -6,6 +6,11 @@ public class CreateRentalRequest
 {
     public int? BookingId { get; set; }
 
+    /// <summary>
+    /// ID người thuê xe (bắt buộc nếu không có BookingId - dành cho walk-in customers)
+    /// </summary>
+    public int? UserId { get; set; }
+
     [Required(ErrorMessage = "ID xe là bắt buộc")]
     [Range(1, int.MaxValue, ErrorMessage = "ID xe phải lớn hơn 0")]
     public int VehicleId { get; set; }
