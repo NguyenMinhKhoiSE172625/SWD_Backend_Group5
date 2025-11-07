@@ -130,41 +130,7 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "EV Rental System API",
-        Version = "v1.0",
-        Description = @"
-# EV Rental System API v1.0
-
-API cho hệ thống thuê xe điện tại điểm thuê.
-
-## Features
-- ✅ JWT Authentication
-- ✅ Role-based Authorization (Renter, StationStaff, Admin)
-- ✅ Vehicle Booking & Rental Management
-- ✅ Payment Processing
-- ✅ Vehicle Inspection Tracking
-- ✅ Station Management
-
-## Authentication
-Sử dụng JWT Bearer token trong header:
-```
-Authorization: Bearer {your_token}
-```
-
-## Rate Limiting
-- Free tier: 100 requests/hour
-- Premium tier: 1000 requests/hour
-",
-        Contact = new OpenApiContact
-        {
-            Name = "EV Rental System Support",
-            Email = "support@evrentalsystem.com",
-            Url = new Uri("https://evrentalsystem.com")
-        },
-        License = new OpenApiLicense
-        {
-            Name = "MIT License",
-            Url = new Uri("https://opensource.org/licenses/MIT")
-        }
+        Version = "v1.0"
     });
 
     // Add JWT Authentication to Swagger
