@@ -118,6 +118,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.PickupTime); // Index for date-based queries
             entity.HasIndex(e => new { e.UserId, e.Status }); // Composite index for user's active rentals
             entity.Property(e => e.RentalCode).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.TotalDistance).HasPrecision(18, 2);
             entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
             entity.Property(e => e.AdditionalFees).HasPrecision(18, 2);
 

@@ -7,8 +7,9 @@ public static class DbInitializer
 {
     public static void Initialize(ApplicationDbContext context)
     {
-        context.Database.EnsureCreated();
-
+        // Note: Database should already be created and migrated before calling this method
+        // Do NOT call EnsureCreated() here as we're using Migrate() in Program.cs
+        
         // Check if data already exists
         if (context.Users.Any())
         {
