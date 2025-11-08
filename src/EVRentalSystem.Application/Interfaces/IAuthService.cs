@@ -7,5 +7,7 @@ public interface IAuthService
     Task<LoginResponse?> RegisterAsync(RegisterRequest request);
     Task<LoginResponse?> LoginAsync(LoginRequest request);
     Task<bool> VerifyUserAsync(int userId, int staffId);
+    Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request);
+    Task<bool> ResetPasswordAsync(ResetPasswordRequest request);
 }
 

@@ -24,7 +24,7 @@ public class BookingsController : ControllerBase
     /// <summary>
     /// Tạo đặt xe mới (Người thuê)
     /// </summary>
-    [HttpPost("create")]
+    [HttpPost]
     [Authorize(Roles = "Renter")]
     [ProducesResponseType(typeof(ApiResponse<BookingResponse>), 200)]
     [ProducesResponseType(typeof(ApiResponse<BookingResponse>), 400)]
@@ -87,7 +87,7 @@ public class BookingsController : ControllerBase
     /// <summary>
     /// Hủy đặt xe (Người thuê)
     /// </summary>
-    [HttpPost("{id}/cancel")]
+    [HttpPut("{id}/cancel")]
     [Authorize(Roles = "Renter")]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 400)]
@@ -107,7 +107,7 @@ public class BookingsController : ControllerBase
     /// <summary>
     /// Xác nhận đặt xe (Nhân viên)
     /// </summary>
-    [HttpPost("{id}/confirm")]
+    [HttpPut("{id}/confirm")]
     [Authorize(Roles = "StationStaff,Admin")]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 400)]

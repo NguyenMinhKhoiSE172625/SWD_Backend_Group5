@@ -22,13 +22,13 @@ public class RentalsController : ControllerBase
     }
 
     /// <summary>
-    /// Tạo giao dịch thuê xe - Giao xe (Nhân viên)
+    /// Giao xe - Check-out (Nhân viên)
     /// </summary>
-    [HttpPost("create")]
+    [HttpPost("checkout")]
     [Authorize(Roles = "StationStaff,Admin")]
     [ProducesResponseType(typeof(ApiResponse<RentalResponse>), 200)]
     [ProducesResponseType(typeof(ApiResponse<RentalResponse>), 400)]
-    public async Task<IActionResult> Create([FromBody] CreateRentalRequest request)
+    public async Task<IActionResult> Checkout([FromBody] CreateRentalRequest request)
     {
         var staffId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
@@ -47,14 +47,20 @@ public class RentalsController : ControllerBase
     }
 
     /// <summary>
-    /// Hoàn tất giao dịch thuê xe - Nhận xe trả (Nhân viên)
+    /// Nhận xe trả - Check-in (Nhân viên)
     /// </summary>
-    [HttpPost("complete")]
+    [HttpPost("{id}/checkin")]
     [Authorize(Roles = "StationStaff,Admin")]
     [ProducesResponseType(typeof(ApiResponse<RentalResponse>), 200)]
     [ProducesResponseType(typeof(ApiResponse<RentalResponse>), 400)]
-    public async Task<IActionResult> Complete([FromBody] CompleteRentalRequest request)
+    public async Task<IActionResult> Checkin(int id, [FromBody] CompleteRentalRequest request)
     {
+        // Ensure rentalId in request matches route id
+        if (request.RentalId != id)
+        {
+            return BadRequest(ApiResponse<RentalResponse>.ErrorResponse("ID giao dịch không khớp"));
+        }
+
         var staffId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
         var result = await _rentalService.CompleteRentalAsync(staffId, request);
         
@@ -103,9 +109,39 @@ public class RentalsController : ControllerBase
     [HttpGet("active")]
     [Authorize(Roles = "StationStaff,Admin")]
     [ProducesResponseType(typeof(ApiResponse<List<RentalResponse>>), 200)]
-    public async Task<IActionResult> GetActive()
+    public async Task<IActionResult> GetActive([FromQuery] int? stationId = null)
     {
-        var rentals = await _rentalService.GetActiveRentalsAsync();
+        var rentals = await _rentalService.GetActiveRentalsAsync(stationId);
+        return Ok(ApiResponse<List<RentalResponse>>.SuccessResponse(rentals));
+    }
+
+    /// <summary>
+    /// Lấy lịch sử check-in/check-out của một rental (ảnh, ghi chú)
+    /// </summary>
+    [HttpGet("{id}/inspections")]
+    [ProducesResponseType(typeof(ApiResponse<List<object>>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<List<object>>), 404)]
+    public async Task<IActionResult> GetInspections(int id)
+    {
+        var rental = await _rentalService.GetRentalByIdAsync(id);
+        if (rental == null)
+        {
+            return NotFound(ApiResponse<List<object>>.ErrorResponse("Không tìm thấy giao dịch thuê xe"));
+        }
+
+        var inspections = await _rentalService.GetRentalInspectionsAsync(id);
+        return Ok(ApiResponse<List<object>>.SuccessResponse(inspections));
+    }
+
+    /// <summary>
+    /// Lấy danh sách rentals tại điểm thuê (Staff)
+    /// </summary>
+    [HttpGet("station/{stationId}")]
+    [Authorize(Roles = "StationStaff,Admin")]
+    [ProducesResponseType(typeof(ApiResponse<List<RentalResponse>>), 200)]
+    public async Task<IActionResult> GetByStation(int stationId, [FromQuery] string? status = null)
+    {
+        var rentals = await _rentalService.GetStationRentalsAsync(stationId, status);
         return Ok(ApiResponse<List<RentalResponse>>.SuccessResponse(rentals));
     }
 }

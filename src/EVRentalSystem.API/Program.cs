@@ -4,7 +4,9 @@ using EVRentalSystem.Application.Interfaces;
 using EVRentalSystem.Infrastructure.Data;
 using EVRentalSystem.Infrastructure.Services;
 using EVRentalSystem.API.Middleware;
+using EVRentalSystem.API.Filters;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -272,6 +274,9 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+
+    // Ignore IFormFile in schema generation to avoid Swagger errors
+    c.SchemaFilter<FormFileSchemaFilter>();
 });
 
 var app = builder.Build();
@@ -303,6 +308,10 @@ app.UseGlobalExceptionHandler();
 
 // Disable HTTPS redirection in development for easier testing
 // app.UseHttpsRedirection();
+
+// Enable static files for uploaded files
+app.UseStaticFiles();
+
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();

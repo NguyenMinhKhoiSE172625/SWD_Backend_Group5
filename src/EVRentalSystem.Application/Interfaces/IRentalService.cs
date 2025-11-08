@@ -8,6 +8,8 @@ public interface IRentalService
     Task<RentalResponse?> CompleteRentalAsync(int staffId, CompleteRentalRequest request);
     Task<RentalResponse?> GetRentalByIdAsync(int rentalId);
     Task<List<RentalResponse>> GetUserRentalsAsync(int userId);
-    Task<List<RentalResponse>> GetActiveRentalsAsync();
+    Task<List<RentalResponse>> GetActiveRentalsAsync(int? stationId = null);
+    Task<List<object>> GetRentalInspectionsAsync(int rentalId);
+    Task<List<RentalResponse>> GetStationRentalsAsync(int stationId, string? status = null);
 }
 

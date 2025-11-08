@@ -25,6 +25,10 @@ public class User
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     
+    // Password reset
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetTokenExpiry { get; set; }
+    
     // Navigation properties
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     public ICollection<Rental> Rentals { get; set; } = new List<Rental>();

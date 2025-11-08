@@ -175,11 +175,57 @@ public class RentalService : IRentalService
         return rentals.Select(r => MapToResponse(r, r.Vehicle)).ToList();
     }
 
-    public async Task<List<RentalResponse>> GetActiveRentalsAsync()
+    public async Task<List<RentalResponse>> GetActiveRentalsAsync(int? stationId = null)
     {
-        var rentals = await _context.Rentals
+        var query = _context.Rentals
             .Include(r => r.Vehicle)
-            .Where(r => r.Status == RentalStatus.Active)
+            .Where(r => r.Status == RentalStatus.Active);
+
+        if (stationId.HasValue)
+        {
+            query = query.Where(r => r.Vehicle.StationId == stationId.Value);
+        }
+
+        var rentals = await query
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        return rentals.Select(r => MapToResponse(r, r.Vehicle)).ToList();
+    }
+
+    public async Task<List<object>> GetRentalInspectionsAsync(int rentalId)
+    {
+        var inspections = await _context.VehicleInspections
+            .Where(i => i.RentalId == rentalId)
+            .OrderBy(i => i.InspectionDate)
+            .ToListAsync();
+
+        return inspections.Select(i => new
+        {
+            Id = i.Id,
+            IsPickup = i.IsPickup,
+            ImageUrls = string.IsNullOrEmpty(i.ImageUrls) 
+                ? new List<string>() 
+                : JsonSerializer.Deserialize<List<string>>(i.ImageUrls) ?? new List<string>(),
+            Notes = i.Notes,
+            DamageReport = i.DamageReport,
+            InspectionDate = i.InspectionDate,
+            InspectorId = i.InspectorId
+        }).Cast<object>().ToList();
+    }
+
+    public async Task<List<RentalResponse>> GetStationRentalsAsync(int stationId, string? status = null)
+    {
+        var query = _context.Rentals
+            .Include(r => r.Vehicle)
+            .Where(r => r.Vehicle.StationId == stationId);
+
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<RentalStatus>(status, out var rentalStatus))
+        {
+            query = query.Where(r => r.Status == rentalStatus);
+        }
+
+        var rentals = await query
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 

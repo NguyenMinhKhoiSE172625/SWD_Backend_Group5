@@ -81,5 +81,37 @@ public class AuthController : ControllerBase
 
         return Ok(ApiResponse<bool>.SuccessResponse(true, "Xác thực thành công"));
     }
+
+    /// <summary>
+    /// Quên mật khẩu - Gửi email reset password
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 400)]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var result = await _authService.ForgotPasswordAsync(request);
+        
+        // Always return success to prevent email enumeration attacks
+        return Ok(ApiResponse<bool>.SuccessResponse(true, "Nếu email tồn tại, bạn sẽ nhận được link reset mật khẩu"));
+    }
+
+    /// <summary>
+    /// Đặt lại mật khẩu với token
+    /// </summary>
+    [HttpPost("reset-password")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 400)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var result = await _authService.ResetPasswordAsync(request);
+        
+        if (!result)
+        {
+            return BadRequest(ApiResponse<bool>.ErrorResponse("Token không hợp lệ hoặc đã hết hạn"));
+        }
+
+        return Ok(ApiResponse<bool>.SuccessResponse(true, "Đặt lại mật khẩu thành công"));
+    }
 }
 

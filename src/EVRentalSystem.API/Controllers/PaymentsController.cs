@@ -24,7 +24,7 @@ public class PaymentsController : ControllerBase
     /// <summary>
     /// Tạo thanh toán (Nhân viên)
     /// </summary>
-    [HttpPost("create")]
+    [HttpPost]
     [Authorize(Roles = "StationStaff,Admin")]
     [ProducesResponseType(typeof(ApiResponse<PaymentResponse>), 200)]
     [ProducesResponseType(typeof(ApiResponse<PaymentResponse>), 400)]
