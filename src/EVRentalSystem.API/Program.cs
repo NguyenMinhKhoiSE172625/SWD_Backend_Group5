@@ -33,10 +33,79 @@ var builder = WebApplication.CreateBuilder(args);
 // Add Serilog
 builder.Host.UseSerilog();
 
-// Add DbContext
+// Add DbContext - Hỗ trợ SQL Server, PostgreSQL (Railway), và SQLite
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("Connection string không được cấu hình!");
+    }
+    
+    // Helper method để convert PostgreSQL URL format sang connection string
+    static string ConvertPostgresUrlToConnectionString(string url)
+    {
+        try
+        {
+            // Format: postgresql://user:password@host:port/database
+            var uri = new Uri(url);
+            var host = uri.Host;
+            var port = uri.Port > 0 ? uri.Port : 5432;
+            var database = uri.AbsolutePath.TrimStart('/');
+            var userInfo = uri.UserInfo.Split(':');
+            var username = userInfo.Length > 0 ? userInfo[0] : "postgres";
+            var password = userInfo.Length > 1 ? userInfo[1] : "";
+            
+            return $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;";
+        }
+        catch
+        {
+            return url; // Return original nếu không parse được
+        }
+    }
+    
+    // Detect database type từ connection string
+    if (connectionString.Contains("Host=") || 
+        connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
+        connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+    {
+        // PostgreSQL (Railway, Supabase, etc.)
+        // Convert URL format nếu cần
+        if (connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) || 
+            connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+        {
+            connectionString = ConvertPostgresUrlToConnectionString(connectionString);
+        }
+        
+        // Cần import Npgsql.EntityFrameworkCore.PostgreSQL package
+        // dotnet add src/EVRentalSystem.Infrastructure package Npgsql.EntityFrameworkCore.PostgreSQL
+        try
+        {
+            options.UseNpgsql(connectionString);
+            Log.Information("📊 Sử dụng PostgreSQL database");
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Npgsql"))
+        {
+            Log.Warning("⚠️ Package Npgsql.EntityFrameworkCore.PostgreSQL chưa được cài đặt. Chạy: dotnet add src/EVRentalSystem.Infrastructure package Npgsql.EntityFrameworkCore.PostgreSQL");
+            throw;
+        }
+    }
+    else if (connectionString.Contains("Data Source=") && 
+             (connectionString.EndsWith(".db", StringComparison.OrdinalIgnoreCase) || 
+              connectionString.Contains(".db;")))
+    {
+        // SQLite (Local development)
+        options.UseSqlite(connectionString);
+        Log.Information("📊 Sử dụng SQLite database");
+    }
+    else
+    {
+        // SQL Server (Azure, Local, etc.) - Default
+        options.UseSqlServer(connectionString);
+        Log.Information("📊 Sử dụng SQL Server database");
+    }
+    
     // Suppress pending model changes warning (indexes will be applied on next migration)
     options.ConfigureWarnings(warnings =>
         warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
@@ -205,9 +274,6 @@ using (var scope = app.Services.CreateScope())
         {
             // Migrate() will automatically create the database if it doesn't exist
             // But first, check if we can connect to the SQL Server instance
-            logger.LogInformation("🔍 Đang kiểm tra kết nối SQL Server...");
-            
-            // Try to connect to master database first to verify SQL Server is accessible
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
             if (string.IsNullOrEmpty(connectionString))
             {
@@ -216,12 +282,46 @@ using (var scope = app.Services.CreateScope())
 
             // Extract database name from connection string
             var dbName = "EVRentalSystemDB";
-            var builder_conn = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
-            if (!string.IsNullOrEmpty(builder_conn.InitialCatalog))
+            if (connectionString.Contains("Database="))
             {
-                dbName = builder_conn.InitialCatalog;
+                var dbMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Database=([^;]+)");
+                if (dbMatch.Success)
+                {
+                    dbName = dbMatch.Groups[1].Value;
+                }
             }
+            else if (connectionString.Contains("Initial Catalog="))
+            {
+                var dbMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Initial Catalog=([^;]+)");
+                if (dbMatch.Success)
+                {
+                    dbName = dbMatch.Groups[1].Value;
+                }
+            }
+            else if (connectionString.Contains("postgresql://") || connectionString.Contains("postgres://"))
+            {
+                // Extract from PostgreSQL URL format: postgresql://user:pass@host:port/database
+                var urlMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"(?:postgresql|postgres)://[^/]+/([^?;]+)");
+                if (urlMatch.Success)
+                {
+                    dbName = urlMatch.Groups[1].Value;
+                }
+            }
+            
+            // Log connection info (ẩn password)
+            var maskedConnectionString = System.Text.RegularExpressions.Regex.Replace(
+                connectionString, 
+                @"(password|pwd)=[^;]+", 
+                "$1=***", 
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            maskedConnectionString = System.Text.RegularExpressions.Regex.Replace(
+                maskedConnectionString,
+                @"(?:postgresql|postgres)://[^:]+:[^@]+@",
+                "postgresql://***:***@",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            logger.LogInformation("🔗 Connection String: {ConnectionString}", maskedConnectionString);
 
+            logger.LogInformation("🔍 Đang kiểm tra kết nối database...");
             logger.LogInformation("📦 Database: {DatabaseName}", dbName);
             logger.LogInformation("🔄 Đang tạo database và áp dụng migrations...");
             logger.LogInformation("   (Database sẽ được tạo tự động nếu chưa tồn tại)");
@@ -239,15 +339,21 @@ using (var scope = app.Services.CreateScope())
             DbInitializer.Initialize(context);
             logger.LogInformation("✅ Dữ liệu mẫu đã được khởi tạo thành công!");
         }
-        catch (Microsoft.Data.SqlClient.SqlException sqlEx)
+        catch (Exception dbEx) when (dbEx is Microsoft.Data.SqlClient.SqlException || 
+                                      dbEx.GetType().FullName?.Contains("Npgsql") == true ||
+                                      dbEx is Microsoft.Data.Sqlite.SqliteException)
         {
-            logger.LogError(sqlEx, "❌ Lỗi kết nối SQL Server!");
-            logger.LogError("📋 Chi tiết lỗi: {ErrorMessage}", sqlEx.Message);
-            logger.LogError("📋 Error Number: {ErrorNumber}, State: {State}", sqlEx.Number, sqlEx.State);
-            logger.LogError("💡 Giải pháp:");
+            logger.LogError(dbEx, "❌ Lỗi kết nối database!");
+            logger.LogError("📋 Chi tiết lỗi: {ErrorMessage}", dbEx.Message);
             
-            // Check for specific error types
-            if (sqlEx.Number == 18456) // Login failed
+            // Handle SQL Server errors
+            if (dbEx is Microsoft.Data.SqlClient.SqlException sqlEx)
+            {
+                logger.LogError("📋 Error Number: {ErrorNumber}, State: {State}", sqlEx.Number, sqlEx.State);
+                logger.LogError("💡 Giải pháp:");
+                
+                // Check for specific error types
+                if (sqlEx.Number == 18456) // Login failed
             {
                 logger.LogError("   🔐 Lỗi xác thực - Windows Authentication:");
                 logger.LogError("      1. Đảm bảo Windows user hiện tại có quyền truy cập SQL Server");
@@ -296,10 +402,30 @@ using (var scope = app.Services.CreateScope())
                 logger.LogError("   3. Kiểm tra Windows Authentication được bật trong SQL Server");
             }
             
-            logger.LogError("   Connection String: {ConnectionString}", 
-                builder.Configuration.GetConnectionString("DefaultConnection"));
-            logger.LogError("   4. Thử kết nối bằng SQL Server Management Studio (SSMS) với Windows Authentication");
-            logger.LogError("   5. Hoặc đổi sang SQLite cho development: Data Source=EVRentalSystem.db");
+                logger.LogError("   Connection String: {ConnectionString}", 
+                    builder.Configuration.GetConnectionString("DefaultConnection"));
+                logger.LogError("   4. Thử kết nối bằng SQL Server Management Studio (SSMS) với Windows Authentication");
+                logger.LogError("   5. Hoặc đổi sang SQLite cho development: Data Source=EVRentalSystem.db");
+            }
+            // Handle PostgreSQL errors
+            else if (dbEx.GetType().FullName?.Contains("Npgsql") == true)
+            {
+                logger.LogError("💡 Giải pháp cho PostgreSQL (Railway):");
+                logger.LogError("   1. Kiểm tra connection string đúng chưa");
+                logger.LogError("   2. Đảm bảo đã thêm 'SSL Mode=Require;' vào connection string");
+                logger.LogError("   3. Kiểm tra database đã được tạo trên Railway chưa");
+                logger.LogError("   4. Đảm bảo đã cài package: dotnet add src/EVRentalSystem.Infrastructure package Npgsql.EntityFrameworkCore.PostgreSQL");
+                logger.LogError("   5. Xem hướng dẫn: manuals/RAILWAY_DEPLOYMENT_GUIDE.md");
+            }
+            // Handle SQLite errors
+            else if (dbEx is Microsoft.Data.Sqlite.SqliteException)
+            {
+                logger.LogError("💡 Giải pháp cho SQLite:");
+                logger.LogError("   1. Kiểm tra file database có tồn tại không");
+                logger.LogError("   2. Kiểm tra quyền truy cập file");
+                logger.LogError("   3. Đảm bảo đường dẫn đúng: Data Source=EVRentalSystem.db");
+            }
+            
             // Don't throw - let the app start but without database functionality
         }
     }
