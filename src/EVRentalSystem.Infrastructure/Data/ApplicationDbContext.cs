@@ -136,6 +136,16 @@ public class ApplicationDbContext : DbContext
                 .WithMany(v => v.Rentals)
                 .HasForeignKey(e => e.VehicleId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.PickupStaff)
+                .WithMany()
+                .HasForeignKey(e => e.PickupStaffId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.ReturnStaff)
+                .WithMany()
+                .HasForeignKey(e => e.ReturnStaffId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // VehicleInspection configuration
@@ -157,6 +167,11 @@ public class ApplicationDbContext : DbContext
                 .WithMany(r => r.Inspections)
                 .HasForeignKey(e => e.RentalId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Inspector)
+                .WithMany()
+                .HasForeignKey(e => e.InspectorId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Payment configuration

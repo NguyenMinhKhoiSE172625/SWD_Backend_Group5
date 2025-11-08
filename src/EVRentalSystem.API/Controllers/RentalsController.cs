@@ -40,7 +40,7 @@ public class RentalsController : ControllerBase
 
         if (result == null)
         {
-            return BadRequest(ApiResponse<RentalResponse>.ErrorResponse("Không thể tạo giao dịch thuê xe"));
+            return BadRequest(ApiResponse<RentalResponse>.ErrorResponse("Không thể tạo giao dịch thuê xe. Vui lòng kiểm tra lại thông tin booking hoặc xe"));
         }
 
         return Ok(ApiResponse<RentalResponse>.SuccessResponse(result, "Giao xe thành công"));
@@ -88,6 +88,25 @@ public class RentalsController : ControllerBase
         }
 
         return Ok(ApiResponse<RentalResponse>.SuccessResponse(rental));
+    }
+
+    /// <summary>
+    /// Lấy thông tin rental với đầy đủ thông tin cho check-in form (Nhân viên)
+    /// </summary>
+    [HttpGet("{id}/checkin-info")]
+    [Authorize(Roles = "StationStaff,Admin")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
+    public async Task<IActionResult> GetCheckinInfo(int id)
+    {
+        var rental = await _rentalService.GetRentalForCheckinAsync(id);
+        
+        if (rental == null)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse("Không tìm thấy giao dịch thuê xe"));
+        }
+
+        return Ok(ApiResponse<object>.SuccessResponse(rental));
     }
 
     /// <summary>
@@ -143,6 +162,60 @@ public class RentalsController : ControllerBase
     {
         var rentals = await _rentalService.GetStationRentalsAsync(stationId, status);
         return Ok(ApiResponse<List<RentalResponse>>.SuccessResponse(rentals));
+    }
+
+    /// <summary>
+    /// Lấy lịch sử giao nhận với filter (Nhân viên)
+    /// </summary>
+    [HttpGet("history")]
+    [Authorize(Roles = "StationStaff,Admin")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    public async Task<IActionResult> GetHistory(
+        [FromQuery] int? stationId = null,
+        [FromQuery] string? type = null, // "checkout", "checkin", null = all
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        // If staff, use their station. If admin, use provided stationId or all stations
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var result = await _rentalService.GetRentalHistoryAsync(stationId, type, fromDate, toDate, search, page, pageSize);
+        return Ok(ApiResponse<object>.SuccessResponse(result));
+    }
+
+    /// <summary>
+    /// Lấy thống kê giao nhận (Nhân viên)
+    /// </summary>
+    [HttpGet("history/statistics")]
+    [Authorize(Roles = "StationStaff,Admin")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    public async Task<IActionResult> GetHistoryStatistics([FromQuery] int? stationId = null, [FromQuery] DateTime? date = null)
+    {
+        // If staff, use their station. If admin, use provided stationId or all stations
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var stats = await _rentalService.GetRentalHistoryStatisticsAsync(stationId, date);
+        return Ok(ApiResponse<object>.SuccessResponse(stats));
+    }
+
+    /// <summary>
+    /// Lấy chi tiết một inspection (checkout hoặc checkin)
+    /// </summary>
+    [HttpGet("inspections/{inspectionId}")]
+    [Authorize(Roles = "StationStaff,Admin")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
+    public async Task<IActionResult> GetInspectionDetail(int inspectionId)
+    {
+        var inspection = await _rentalService.GetInspectionDetailAsync(inspectionId);
+        
+        if (inspection == null)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse("Không tìm thấy bản ghi kiểm tra"));
+        }
+
+        return Ok(ApiResponse<object>.SuccessResponse(inspection));
     }
 }
 

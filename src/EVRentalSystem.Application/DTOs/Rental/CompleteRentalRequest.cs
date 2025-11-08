@@ -12,6 +12,9 @@ public class CompleteRentalRequest
     [Range(0, 100, ErrorMessage = "Mức pin phải từ 0-100%")]
     public int ReturnBatteryLevel { get; set; }
 
+    [Range(0, double.MaxValue, ErrorMessage = "ODO sau khi trả phải lớn hơn hoặc bằng 0")]
+    public decimal? OdometerAfterReturn { get; set; }
+
     [Range(0, 10000, ErrorMessage = "Tổng quãng đường phải từ 0-10000 km")]
     public decimal? TotalDistance { get; set; }
 
@@ -28,5 +31,15 @@ public class CompleteRentalRequest
     public string? DamageReport { get; set; }
 
     public List<string>? ReturnImageUrls { get; set; }
+
+    /// <summary>
+    /// Chữ ký người thuê (base64 encoded image)
+    /// </summary>
+    public string? RenterSignature { get; set; }
+
+    /// <summary>
+    /// Chữ ký nhân viên (base64 encoded image)
+    /// </summary>
+    public string? StaffSignature { get; set; }
 }
 

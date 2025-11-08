@@ -60,6 +60,33 @@ public class BookingsController : ControllerBase
     }
 
     /// <summary>
+    /// Lấy thông tin đặt xe với đầy đủ thông tin cho checkout (Nhân viên)
+    /// </summary>
+    [HttpGet("{id}/checkout-info")]
+    [Authorize(Roles = "StationStaff,Admin")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
+    public async Task<IActionResult> GetCheckoutInfo(int id)
+    {
+        var booking = await _bookingService.GetBookingByIdAsync(id);
+        
+        if (booking == null)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse("Không tìm thấy đặt xe"));
+        }
+
+        // Get full booking with user and vehicle details
+        var fullBooking = await _bookingService.GetBookingForCheckoutAsync(id);
+        
+        if (fullBooking == null)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse("Không tìm thấy đặt xe"));
+        }
+
+        return Ok(ApiResponse<object>.SuccessResponse(fullBooking));
+    }
+
+    /// <summary>
     /// Lấy danh sách đặt xe của người dùng
     /// </summary>
     [HttpGet("my-bookings")]

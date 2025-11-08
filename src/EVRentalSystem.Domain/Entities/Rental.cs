@@ -30,7 +30,10 @@ public class Rental
     public RentalStatus Status { get; set; }
     
     public int? PickupStaffId { get; set; }
+    public User? PickupStaff { get; set; }
+    
     public int? ReturnStaffId { get; set; }
+    public User? ReturnStaff { get; set; }
     
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

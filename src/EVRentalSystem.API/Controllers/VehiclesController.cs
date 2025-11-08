@@ -55,9 +55,9 @@ public class VehiclesController : ControllerBase
     [HttpGet("station/{stationId}")]
     [Authorize(Roles = "StationStaff,Admin")]
     [ProducesResponseType(typeof(ApiResponse<List<VehicleResponse>>), 200)]
-    public async Task<IActionResult> GetByStation(int stationId)
+    public async Task<IActionResult> GetByStation(int stationId, [FromQuery] string? status = null)
     {
-        var vehicles = await _vehicleService.GetStationVehiclesAsync(stationId);
+        var vehicles = await _vehicleService.GetStationVehiclesAsync(stationId, status);
         return Ok(ApiResponse<List<VehicleResponse>>.SuccessResponse(vehicles));
     }
 

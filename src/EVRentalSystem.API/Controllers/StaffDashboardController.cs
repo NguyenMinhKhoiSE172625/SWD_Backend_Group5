@@ -40,7 +40,9 @@ public class StaffDashboardController : ControllerBase
     public async Task<IActionResult> GetDashboard([FromQuery] int? stationId = null)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _context.Users
+            .Include(u => u.Station)
+            .FirstOrDefaultAsync(u => u.Id == userId);
 
         // If staff, use their station. If admin, use provided stationId or all stations
         var targetStationId = user?.StationId ?? stationId;
@@ -80,15 +82,19 @@ public class StaffDashboardController : ControllerBase
             .Where(u => u.Role == Domain.Enums.UserRole.Renter && !u.IsVerified)
             .CountAsync();
 
+        // Get vehicles with booking/rental info for dashboard list
+        var vehiclesWithInfo = await GetVehiclesWithBookingRentalInfo(targetStationId);
+
         var dashboard = new
         {
             StationId = targetStationId,
+            StationName = user?.Station?.Name,
             Vehicles = new
             {
                 Total = vehicles.Count,
                 Available = availableVehicles,
-                InUse = inUseVehicles,
                 Booked = bookedVehicles,
+                InUse = inUseVehicles,
                 Damaged = damagedVehicles
             },
             Bookings = new
@@ -104,17 +110,115 @@ public class StaffDashboardController : ControllerBase
                 Today = todayRentals
             },
             UnverifiedUsers = unverifiedUsers,
-            RecentBookings = bookings
-                .OrderByDescending(b => b.CreatedAt)
-                .Take(5)
-                .ToList(),
-            RecentRentals = activeRentals
-                .OrderByDescending(r => r.PickupTime)
-                .Take(5)
-                .ToList()
+            VehicleList = vehiclesWithInfo
         };
 
         return Ok(ApiResponse<object>.SuccessResponse(dashboard));
+    }
+
+    /// <summary>
+    /// Lấy danh sách xe với thông tin booking/rental (cho dashboard)
+    /// </summary>
+    [HttpGet("vehicles")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    public async Task<IActionResult> GetVehicles([FromQuery] int? stationId = null, [FromQuery] string? status = null)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var user = await _context.Users
+            .Include(u => u.Station)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        var targetStationId = user?.StationId ?? stationId;
+
+        if (targetStationId == null && user?.Role.ToString() != "Admin")
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse("Nhân viên chưa được gán vào điểm thuê"));
+        }
+
+        var vehicles = await GetVehiclesWithBookingRentalInfo(targetStationId, status);
+        return Ok(ApiResponse<object>.SuccessResponse(vehicles));
+    }
+
+    private async Task<List<object>> GetVehiclesWithBookingRentalInfo(int? stationId, string? status = null)
+    {
+        var query = _context.Vehicles
+            .Include(v => v.Station)
+            .AsQueryable();
+
+        if (stationId.HasValue)
+        {
+            query = query.Where(v => v.StationId == stationId.Value);
+        }
+
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<Domain.Enums.VehicleStatus>(status, out var vehicleStatus))
+        {
+            query = query.Where(v => v.Status == vehicleStatus);
+        }
+
+        var vehicles = await query.ToListAsync();
+        var vehicleIds = vehicles.Select(v => v.Id).ToList();
+
+        // Get active bookings with user info
+        var activeBookings = await _context.Bookings
+            .Include(b => b.User)
+            .Where(b => vehicleIds.Contains(b.VehicleId) 
+                && (b.Status == Domain.Enums.BookingStatus.Confirmed || b.Status == Domain.Enums.BookingStatus.Pending))
+            .ToListAsync();
+
+        // Get active rentals with user info
+        var activeRentals = await _context.Rentals
+            .Include(r => r.User)
+            .Where(r => vehicleIds.Contains(r.VehicleId) 
+                && r.Status == Domain.Enums.RentalStatus.Active)
+            .ToListAsync();
+
+        return vehicles.Select(v =>
+        {
+            var activeBooking = activeBookings
+                .Where(b => b.VehicleId == v.Id)
+                .OrderBy(b => b.ScheduledPickupTime)
+                .FirstOrDefault();
+
+            var activeRental = activeRentals
+                .Where(r => r.VehicleId == v.Id)
+                .FirstOrDefault();
+
+            return new
+            {
+                Id = v.Id,
+                LicensePlate = v.LicensePlate,
+                Model = v.Model,
+                Brand = v.Brand,
+                Year = v.Year,
+                Color = v.Color,
+                BatteryCapacity = v.BatteryCapacity,
+                PricePerHour = v.PricePerHour,
+                PricePerDay = v.PricePerDay,
+                Status = v.Status.ToString(),
+                ImageUrl = v.ImageUrl,
+                Description = v.Description,
+                StationId = v.StationId,
+                StationName = v.Station?.Name,
+                // Booking info (nếu có)
+                Booking = activeBooking != null ? new
+                {
+                    Id = activeBooking.Id,
+                    CustomerName = activeBooking.User.FullName,
+                    CustomerId = activeBooking.UserId,
+                    ScheduledPickupTime = activeBooking.ScheduledPickupTime,
+                    Status = activeBooking.Status.ToString()
+                } : null,
+                // Rental info (nếu có)
+                Rental = activeRental != null ? new
+                {
+                    Id = activeRental.Id,
+                    CustomerName = activeRental.User.FullName,
+                    CustomerId = activeRental.UserId,
+                    PickupTime = activeRental.PickupTime,
+                    Status = activeRental.Status.ToString()
+                } : null
+            };
+        }).Cast<object>().ToList();
     }
 
     /// <summary>
