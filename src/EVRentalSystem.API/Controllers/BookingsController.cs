@@ -24,7 +24,7 @@ public class BookingsController : ControllerBase
     /// <summary>
     /// Tạo đặt xe mới (Người thuê)
     /// </summary>
-    [HttpPost("create")]
+    [HttpPost]
     [Authorize(Roles = "Renter")]
     [ProducesResponseType(typeof(ApiResponse<BookingResponse>), 200)]
     [ProducesResponseType(typeof(ApiResponse<BookingResponse>), 400)]
@@ -60,6 +60,33 @@ public class BookingsController : ControllerBase
     }
 
     /// <summary>
+    /// Lấy thông tin đặt xe với đầy đủ thông tin cho checkout (Nhân viên)
+    /// </summary>
+    [HttpGet("{id}/checkout-info")]
+    [Authorize(Roles = "StationStaff,Admin")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
+    public async Task<IActionResult> GetCheckoutInfo(int id)
+    {
+        var booking = await _bookingService.GetBookingByIdAsync(id);
+        
+        if (booking == null)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse("Không tìm thấy đặt xe"));
+        }
+
+        // Get full booking with user and vehicle details
+        var fullBooking = await _bookingService.GetBookingForCheckoutAsync(id);
+        
+        if (fullBooking == null)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse("Không tìm thấy đặt xe"));
+        }
+
+        return Ok(ApiResponse<object>.SuccessResponse(fullBooking));
+    }
+
+    /// <summary>
     /// Lấy danh sách đặt xe của người dùng
     /// </summary>
     [HttpGet("my-bookings")]
@@ -87,7 +114,7 @@ public class BookingsController : ControllerBase
     /// <summary>
     /// Hủy đặt xe (Người thuê)
     /// </summary>
-    [HttpPost("{id}/cancel")]
+    [HttpPut("{id}/cancel")]
     [Authorize(Roles = "Renter")]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 400)]
@@ -107,7 +134,7 @@ public class BookingsController : ControllerBase
     /// <summary>
     /// Xác nhận đặt xe (Nhân viên)
     /// </summary>
-    [HttpPost("{id}/confirm")]
+    [HttpPut("{id}/confirm")]
     [Authorize(Roles = "StationStaff,Admin")]
     [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
     [ProducesResponseType(typeof(ApiResponse<bool>), 400)]

@@ -125,6 +125,56 @@ public class BookingService : IBookingService
         return $"BK{DateTime.UtcNow:yyyyMMddHHmmss}{new Random().Next(1000, 9999)}";
     }
 
+    public async Task<object?> GetBookingForCheckoutAsync(int bookingId)
+    {
+        var booking = await _context.Bookings
+            .Include(b => b.User)
+            .Include(b => b.Vehicle)
+                .ThenInclude(v => v.Station)
+            .FirstOrDefaultAsync(b => b.Id == bookingId);
+
+        if (booking == null)
+        {
+            return null;
+        }
+
+        return new
+        {
+            Id = booking.Id,
+            BookingCode = booking.BookingCode,
+            Vehicle = new
+            {
+                Id = booking.Vehicle.Id,
+                LicensePlate = booking.Vehicle.LicensePlate,
+                Model = booking.Vehicle.Model,
+                Brand = booking.Vehicle.Brand,
+                Year = booking.Vehicle.Year,
+                Color = booking.Vehicle.Color,
+                BatteryCapacity = booking.Vehicle.BatteryCapacity,
+                ImageUrl = booking.Vehicle.ImageUrl,
+                Description = booking.Vehicle.Description,
+                VehicleName = $"{booking.Vehicle.Brand} {booking.Vehicle.Model}"
+            },
+            Station = new
+            {
+                Id = booking.StationId,
+                Name = booking.Vehicle.Station?.Name ?? ""
+            },
+            Customer = new
+            {
+                Id = booking.User.Id,
+                FullName = booking.User.FullName,
+                Email = booking.User.Email,
+                PhoneNumber = booking.User.PhoneNumber
+            },
+            ScheduledPickupTime = booking.ScheduledPickupTime,
+            ScheduledReturnTime = booking.ScheduledReturnTime,
+            Status = booking.Status.ToString(),
+            Notes = booking.Notes,
+            CreatedAt = booking.CreatedAt
+        };
+    }
+
     private BookingResponse MapToResponse(Booking booking, Vehicle vehicle)
     {
         return new BookingResponse

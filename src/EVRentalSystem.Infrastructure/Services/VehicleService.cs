@@ -39,12 +39,18 @@ public class VehicleService : IVehicleService
         return vehicle == null ? null : MapToResponse(vehicle);
     }
 
-    public async Task<List<VehicleResponse>> GetStationVehiclesAsync(int stationId)
+    public async Task<List<VehicleResponse>> GetStationVehiclesAsync(int stationId, string? status = null)
     {
-        var vehicles = await _context.Vehicles
+        var query = _context.Vehicles
             .Include(v => v.Station)
-            .Where(v => v.StationId == stationId)
-            .ToListAsync();
+            .Where(v => v.StationId == stationId);
+
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<VehicleStatus>(status, out var vehicleStatus))
+        {
+            query = query.Where(v => v.Status == vehicleStatus);
+        }
+
+        var vehicles = await query.ToListAsync();
 
         return vehicles.Select(MapToResponse).ToList();
     }

@@ -98,5 +98,61 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)
+    {
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
+
+        if (user == null)
+        {
+            // Return true để không tiết lộ email có tồn tại hay không (security best practice)
+            return true;
+        }
+
+        // Generate reset token
+        var resetToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+            .Replace("+", "-")
+            .Replace("/", "_")
+            .Replace("=", "");
+
+        user.PasswordResetToken = resetToken;
+        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1); // Token valid for 1 hour
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        // TODO: Send email with reset link
+        // For now, log the token (in production, send via email service)
+        // Example reset link: https://yourapp.com/reset-password?token={resetToken}&email={email}
+        Console.WriteLine($"Password reset token for {user.Email}: {resetToken}");
+        Console.WriteLine($"Reset link: /reset-password?token={resetToken}&email={user.Email}");
+
+        return true;
+    }
+
+    public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Email == request.Email 
+                && u.PasswordResetToken == request.Token
+                && u.PasswordResetTokenExpiry.HasValue
+                && u.PasswordResetTokenExpiry.Value > DateTime.UtcNow);
+
+        if (user == null)
+        {
+            return false;
+        }
+
+        // Update password
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        user.PasswordResetToken = null;
+        user.PasswordResetTokenExpiry = null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
 }
 

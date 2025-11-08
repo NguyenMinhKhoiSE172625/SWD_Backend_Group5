@@ -10,5 +10,6 @@ public interface IBookingService
     Task<List<BookingResponse>> GetStationBookingsAsync(int stationId);
     Task<bool> CancelBookingAsync(int bookingId, int userId);
     Task<bool> ConfirmBookingAsync(int bookingId, int staffId);
+    Task<object?> GetBookingForCheckoutAsync(int bookingId);
 }
 
