@@ -51,12 +51,28 @@ builder.Host.UseSerilog();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     // Ưu tiên đọc DATABASE_URL từ Railway (Railway tự động inject biến này)
-    var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL") 
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    var connectionString = databaseUrl 
         ?? builder.Configuration.GetConnectionString("DefaultConnection");
+    
+    // Log để debug
+    if (!string.IsNullOrEmpty(databaseUrl))
+    {
+        Log.Information("✅ DATABASE_URL từ Railway: {DatabaseUrl}", 
+            databaseUrl.Length > 50 ? databaseUrl.Substring(0, 50) + "..." : databaseUrl);
+    }
+    else
+    {
+        Log.Warning("⚠️ DATABASE_URL không được set! App sẽ sử dụng connection string từ appsettings.json");
+        Log.Warning("💡 Để kết nối PostgreSQL trên Railway:");
+        Log.Warning("   1. Tạo PostgreSQL service trên Railway");
+        Log.Warning("   2. Kết nối PostgreSQL service với app service (Settings > Variables > Add Reference)");
+        Log.Warning("   3. Hoặc set DATABASE_URL manually trong Environment Variables");
+    }
     
     if (string.IsNullOrEmpty(connectionString))
     {
-        throw new InvalidOperationException("Connection string không được cấu hình!");
+        throw new InvalidOperationException("Connection string không được cấu hình! Set DATABASE_URL env variable trên Railway hoặc DefaultConnection trong appsettings.json");
     }
     
     // Helper method để convert PostgreSQL URL format sang connection string
@@ -320,54 +336,66 @@ using (var scope = app.Services.CreateScope())
         // Check database connection and create if not exists
         try
         {
-            // Migrate() will automatically create the database if it doesn't exist
-            // But first, check if we can connect to the SQL Server instance
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-            if (string.IsNullOrEmpty(connectionString))
+            // Lấy connection string từ context đã được config (đã xử lý DATABASE_URL)
+            var connectionString = context.Database.GetConnectionString();
+            
+            // Log để debug
+            var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+            var hasDatabaseUrl = !string.IsNullOrEmpty(databaseUrl);
+            logger.LogInformation("🔍 DATABASE_URL env variable: {HasDatabaseUrl}", hasDatabaseUrl ? "✅ Đã được set" : "❌ Không có");
+            
+            if (hasDatabaseUrl)
             {
-                throw new InvalidOperationException("Connection string không được cấu hình!");
+                logger.LogInformation("✅ Sử dụng DATABASE_URL từ Railway");
             }
-
-            // Extract database name from connection string
-            var dbName = "EVRentalSystemDB";
-            if (connectionString.Contains("Database="))
+            else
             {
-                var dbMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Database=([^;]+)");
-                if (dbMatch.Success)
-                {
-                    dbName = dbMatch.Groups[1].Value;
-                }
-            }
-            else if (connectionString.Contains("Initial Catalog="))
-            {
-                var dbMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Initial Catalog=([^;]+)");
-                if (dbMatch.Success)
-                {
-                    dbName = dbMatch.Groups[1].Value;
-                }
-            }
-            else if (connectionString.Contains("postgresql://") || connectionString.Contains("postgres://"))
-            {
-                // Extract from PostgreSQL URL format: postgresql://user:pass@host:port/database
-                var urlMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"(?:postgresql|postgres)://[^/]+/([^?;]+)");
-                if (urlMatch.Success)
-                {
-                    dbName = urlMatch.Groups[1].Value;
-                }
+                logger.LogWarning("⚠️ DATABASE_URL chưa được set, đang sử dụng connection string từ appsettings.json");
             }
             
-            // Log connection info (ẩn password)
-            var maskedConnectionString = System.Text.RegularExpressions.Regex.Replace(
-                connectionString, 
-                @"(password|pwd)=[^;]+", 
-                "$1=***", 
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            maskedConnectionString = System.Text.RegularExpressions.Regex.Replace(
-                maskedConnectionString,
-                @"(?:postgresql|postgres)://[^:]+:[^@]+@",
-                "postgresql://***:***@",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            logger.LogInformation("🔗 Connection String: {ConnectionString}", maskedConnectionString);
+            // Extract database name from connection string
+            var dbName = "EVRentalSystemDB";
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                if (connectionString.Contains("Database="))
+                {
+                    var dbMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Database=([^;]+)");
+                    if (dbMatch.Success)
+                    {
+                        dbName = dbMatch.Groups[1].Value;
+                    }
+                }
+                else if (connectionString.Contains("Initial Catalog="))
+                {
+                    var dbMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"Initial Catalog=([^;]+)");
+                    if (dbMatch.Success)
+                    {
+                        dbName = dbMatch.Groups[1].Value;
+                    }
+                }
+                else if (connectionString.Contains("postgresql://") || connectionString.Contains("postgres://"))
+                {
+                    // Extract from PostgreSQL URL format: postgresql://user:pass@host:port/database
+                    var urlMatch = System.Text.RegularExpressions.Regex.Match(connectionString, @"(?:postgresql|postgres)://[^/]+/([^?;]+)");
+                    if (urlMatch.Success)
+                    {
+                        dbName = urlMatch.Groups[1].Value;
+                    }
+                }
+                
+                // Log connection info (ẩn password)
+                var maskedConnectionString = System.Text.RegularExpressions.Regex.Replace(
+                    connectionString, 
+                    @"(password|pwd)=[^;]+", 
+                    "$1=***", 
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                maskedConnectionString = System.Text.RegularExpressions.Regex.Replace(
+                    maskedConnectionString,
+                    @"(?:postgresql|postgres)://[^:]+:[^@]+@",
+                    "postgresql://***:***@",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                logger.LogInformation("🔗 Connection String: {ConnectionString}", maskedConnectionString);
+            }
 
             logger.LogInformation("🔍 Đang kiểm tra kết nối database...");
             logger.LogInformation("📦 Database: {DatabaseName}", dbName);
