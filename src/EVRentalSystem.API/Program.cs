@@ -28,6 +28,20 @@ try
 {
     Log.Information("Starting EV Rental System API");
 
+    // Đọc PORT từ Railway (Railway tự động set biến này)
+    var port = Environment.GetEnvironmentVariable("PORT");
+    if (!string.IsNullOrEmpty(port) && int.TryParse(port, out int portNumber))
+    {
+        // Railway sẽ tự động expose port này
+        Environment.SetEnvironmentVariable("ASPNETCORE_URLS", $"http://+:{port}");
+        Log.Information("🚂 Railway PORT detected: {Port}", port);
+    }
+    else
+    {
+        // Development hoặc local - sử dụng default
+        Log.Information("🔧 Running in local/development mode");
+    }
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add Serilog
@@ -36,7 +50,9 @@ builder.Host.UseSerilog();
 // Add DbContext - Hỗ trợ SQL Server, PostgreSQL (Railway), và SQLite
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    // Ưu tiên đọc DATABASE_URL từ Railway (Railway tự động inject biến này)
+    var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL") 
+        ?? builder.Configuration.GetConnectionString("DefaultConnection");
     
     if (string.IsNullOrEmpty(connectionString))
     {
@@ -145,6 +161,18 @@ builder.Services.AddResponseCompression(options =>
 });
 
 // Add JWT Authentication
+// Hỗ trợ đọc từ env variables: JWT__KEY, JWT__ISSUER, JWT__AUDIENCE (double underscore)
+// Hoặc từ appsettings.json: Jwt:Key, Jwt:Issuer, Jwt:Audience
+var jwtKey = builder.Configuration["Jwt:Key"] 
+    ?? Environment.GetEnvironmentVariable("JWT__KEY")
+    ?? throw new InvalidOperationException("JWT Key chưa được cấu hình! Set Jwt:Key trong appsettings.json hoặc JWT__KEY env variable.");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] 
+    ?? Environment.GetEnvironmentVariable("JWT__ISSUER")
+    ?? "EVRentalSystem";
+var jwtAudience = builder.Configuration["Jwt:Audience"] 
+    ?? Environment.GetEnvironmentVariable("JWT__AUDIENCE")
+    ?? "EVRentalSystemUsers";
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -154,12 +182,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
+
+Log.Information("🔐 JWT configured - Issuer: {Issuer}, Audience: {Audience}", jwtIssuer, jwtAudience);
 
 builder.Services.AddAuthorization();
 
@@ -178,17 +207,34 @@ builder.Services.AddCors(options =>
     }
     else
     {
-        // Production: Restrict to specific origins
-        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-            ?? new[] { "https://yourdomain.com" };
-
-        options.AddPolicy("AllowAll", policy =>
+        // Production: Allow all origins (có thể restrict sau nếu cần)
+        // Railway sẽ cung cấp domain dạng: https://your-app.railway.app
+        // Bạn có thể set CORS_ORIGINS env variable trên Railway để restrict origins cụ thể
+        var corsOriginsEnv = Environment.GetEnvironmentVariable("CORS_ORIGINS");
+        if (!string.IsNullOrEmpty(corsOriginsEnv))
         {
-            policy.WithOrigins(allowedOrigins)
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials();
-        });
+            // Nếu có set CORS_ORIGINS env variable, sử dụng nó
+            var allowedOrigins = corsOriginsEnv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            options.AddPolicy("AllowAll", policy =>
+            {
+                policy.WithOrigins(allowedOrigins)
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials();
+            });
+            Log.Information("🔒 CORS restricted to: {Origins}", string.Join(", ", allowedOrigins));
+        }
+        else
+        {
+            // Mặc định cho phép tất cả origins (cho Railway deployment)
+            options.AddPolicy("AllowAll", policy =>
+            {
+                policy.AllowAnyOrigin()
+                      .AllowAnyMethod()
+                      .AllowAnyHeader();
+            });
+            Log.Information("🌐 CORS: Allow all origins (set CORS_ORIGINS env variable trên Railway để restrict)");
+        }
     }
 });
 
@@ -231,7 +277,9 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+// Bật Swagger trong Development và Production (có thể tắt bằng env variable ENABLE_SWAGGER=false)
+var enableSwagger = Environment.GetEnvironmentVariable("ENABLE_SWAGGER") != "false";
+if (app.Environment.IsDevelopment() || enableSwagger)
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>

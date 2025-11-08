@@ -1,0 +1,56 @@
+# .NET build artifacts
+**/bin/
+**/obj/
+**/out/
+
+# Visual Studio files
+.vs/
+.vscode/
+*.user
+*.suo
+*.cache
+
+# Rider files
+.idea/
+
+# Test results
+**/TestResults/
+**/*.trx
+**/*.coverage
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# Railway
+railway.json
+
+# Scripts
+scripts/
+
+# Documentation
+*.md
+!README.md
+
+# Environment files
+.env
+.env.local
+*.env
+
+# User secrets
+**/Properties/secrets.json
+
