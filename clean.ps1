@@ -27,3 +27,5 @@ Write-Host "`nTo compress the project, use:" -ForegroundColor Cyan
 Write-Host "Compress-Archive -Path . -DestinationPath SWD_Backend_Group5.zip -Force" -ForegroundColor Yellow
 
 
+
+

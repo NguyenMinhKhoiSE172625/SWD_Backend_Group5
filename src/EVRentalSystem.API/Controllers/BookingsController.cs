@@ -2,8 +2,10 @@ using EVRentalSystem.API.Filters;
 using EVRentalSystem.Application.DTOs.Booking;
 using EVRentalSystem.Application.DTOs.Common;
 using EVRentalSystem.Application.Interfaces;
+using EVRentalSystem.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace EVRentalSystem.API.Controllers;
@@ -15,10 +17,12 @@ namespace EVRentalSystem.API.Controllers;
 public class BookingsController : ControllerBase
 {
     private readonly IBookingService _bookingService;
+    private readonly ApplicationDbContext _context;
 
-    public BookingsController(IBookingService bookingService)
+    public BookingsController(IBookingService bookingService, ApplicationDbContext context)
     {
         _bookingService = bookingService;
+        _context = context;
     }
 
     /// <summary>
@@ -87,16 +91,52 @@ public class BookingsController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy danh sách đặt xe của người dùng
+    /// Lấy danh sách đặt xe (Renter: bookings của mình, Staff: bookings tại station)
     /// </summary>
     [HttpGet("my-bookings")]
-    [Authorize(Roles = "Renter")]
+    [Authorize(Roles = "Renter,StationStaff,Admin")]
     [ProducesResponseType(typeof(ApiResponse<List<BookingResponse>>), 200)]
     public async Task<IActionResult> GetMyBookings()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var bookings = await _bookingService.GetUserBookingsAsync(userId);
-        return Ok(ApiResponse<List<BookingResponse>>.SuccessResponse(bookings));
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+        // Nếu là Staff hoặc Admin, trả về bookings tại station của họ
+        if (userRole == "StationStaff" || userRole == "Admin")
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user?.StationId.HasValue == true)
+            {
+                var bookings = await _bookingService.GetStationBookingsAsync(user.StationId.Value);
+                return Ok(ApiResponse<List<BookingResponse>>.SuccessResponse(bookings));
+            }
+            // Nếu Admin không có station, trả về tất cả bookings
+            var allBookings = await _context.Bookings
+                .Include(b => b.Vehicle)
+                .ThenInclude(v => v.Station)
+                .OrderByDescending(b => b.CreatedAt)
+                .ToListAsync();
+            var mappedBookings = allBookings.Select(b => new BookingResponse
+            {
+                Id = b.Id,
+                BookingCode = b.BookingCode,
+                VehicleId = b.VehicleId,
+                VehicleName = $"{b.Vehicle?.Brand} {b.Vehicle?.Model}",
+                LicensePlate = b.Vehicle?.LicensePlate ?? "",
+                StationId = b.StationId,
+                StationName = b.Vehicle?.Station?.Name ?? "",
+                ScheduledPickupTime = b.ScheduledPickupTime,
+                ScheduledReturnTime = b.ScheduledReturnTime,
+                Status = b.Status.ToString(),
+                Notes = b.Notes,
+                CreatedAt = b.CreatedAt
+            }).ToList();
+            return Ok(ApiResponse<List<BookingResponse>>.SuccessResponse(mappedBookings));
+        }
+
+        // Nếu là Renter, trả về bookings của họ
+        var userBookings = await _bookingService.GetUserBookingsAsync(userId);
+        return Ok(ApiResponse<List<BookingResponse>>.SuccessResponse(userBookings));
     }
 
     /// <summary>
