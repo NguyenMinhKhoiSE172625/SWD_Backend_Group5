@@ -61,7 +61,7 @@ public class RentalService : IRentalService
         var inspection = new VehicleInspection
         {
             VehicleId = request.VehicleId,
-            RentalId = rental.Id,
+            Rental = rental, // Use navigation property instead of RentalId
             InspectorId = staffId,
             IsPickup = true,
             ImageUrls = request.PickupImageUrls != null ? JsonSerializer.Serialize(request.PickupImageUrls) : null,
@@ -135,7 +135,7 @@ public class RentalService : IRentalService
         var inspection = new VehicleInspection
         {
             VehicleId = rental.VehicleId,
-            RentalId = rental.Id,
+            Rental = rental, // Use navigation property
             InspectorId = staffId,
             IsPickup = false,
             ImageUrls = request.ReturnImageUrls != null ? JsonSerializer.Serialize(request.ReturnImageUrls) : null,
