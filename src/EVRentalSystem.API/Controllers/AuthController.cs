@@ -57,6 +57,29 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Test token - Kiểm tra token có hợp lệ không
+    /// </summary>
+    [HttpGet("test-token")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    public IActionResult TestToken()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+        var name = User.FindFirst(ClaimTypes.Name)?.Value;
+
+        return Ok(ApiResponse<object>.SuccessResponse(new
+        {
+            userId,
+            email,
+            role,
+            name,
+            message = "Token hợp lệ! ✅"
+        }));
+    }
+
+    /// <summary>
     /// Xác thực khách hàng (Chỉ nhân viên)
     /// </summary>
     [HttpPost("verify/{userId}")]

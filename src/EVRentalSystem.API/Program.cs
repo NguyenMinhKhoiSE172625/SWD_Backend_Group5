@@ -204,6 +204,43 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
+
+        // Tùy chỉnh cách lấy token - cho phép nhiều format
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                // 1. Lấy từ Authorization header (cả Bearer và không Bearer)
+                var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(authHeader))
+                {
+                    // Nếu có "Bearer ", bỏ đi
+                    if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        context.Token = authHeader.Substring("Bearer ".Length).Trim();
+                    }
+                    else
+                    {
+                        // Nếu không có "Bearer", dùng trực tiếp
+                        context.Token = authHeader.Trim();
+                    }
+                }
+
+                // 2. Nếu không có trong header, thử lấy từ query string
+                if (string.IsNullOrEmpty(context.Token))
+                {
+                    context.Token = context.Request.Query["token"].FirstOrDefault();
+                }
+
+                // 3. Nếu vẫn không có, thử lấy từ cookie
+                if (string.IsNullOrEmpty(context.Token))
+                {
+                    context.Token = context.Request.Cookies["token"];
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 Log.Information("🔐 JWT configured - Issuer: {Issuer}, Audience: {Audience}", jwtIssuer, jwtAudience);
