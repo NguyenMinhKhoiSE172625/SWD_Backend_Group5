@@ -306,10 +306,12 @@ public class AdminController : ControllerBase
         // Seed more vehicles
         var vehicles = new[]
         {
-            // Station 1 - Quận 1
+            // Station 1 - Quận 1 (10 xe với đầy đủ status)
+            
+            // Available (2 xe)
             new Vehicle
             {
-                LicensePlate = "59A-34567",
+                LicensePlate = "59A-11101",
                 Model = "Feliz S",
                 Brand = "VinFast",
                 Year = 2024,
@@ -324,12 +326,12 @@ public class AdminController : ControllerBase
             },
             new Vehicle
             {
-                LicensePlate = "59A-34568",
+                LicensePlate = "59A-11102",
                 Model = "Evo200",
                 Brand = "Pega",
                 Year = 2023,
                 Color = "Đen",
-                BatteryCapacity = 92,
+                BatteryCapacity = 95,
                 PricePerHour = 48000,
                 PricePerDay = 290000,
                 Status = VehicleStatus.Available,
@@ -337,9 +339,11 @@ public class AdminController : ControllerBase
                 Description = "Xe máy điện Pega Evo200",
                 CreatedAt = DateTime.UtcNow
             },
+            
+            // Booked (2 xe)
             new Vehicle
             {
-                LicensePlate = "59A-34569",
+                LicensePlate = "59A-11103",
                 Model = "Klara S",
                 Brand = "VinFast",
                 Year = 2023,
@@ -347,34 +351,147 @@ public class AdminController : ControllerBase
                 BatteryCapacity = 88,
                 PricePerHour = 50000,
                 PricePerDay = 300000,
-                Status = VehicleStatus.Available,
+                Status = VehicleStatus.Booked,
                 StationId = station1.Id,
-                Description = "Xe máy điện VinFast Klara S màu xanh dương",
+                Description = "Xe đã được đặt trước",
                 CreatedAt = DateTime.UtcNow
             },
-            // Station 2 - Quận 3
             new Vehicle
             {
-                LicensePlate = "59B-78901",
+                LicensePlate = "59A-11104",
+                Model = "Ludo",
+                Brand = "VinFast",
+                Year = 2024,
+                Color = "Hồng",
+                BatteryCapacity = 100,
+                PricePerHour = 52000,
+                PricePerDay = 310000,
+                Status = VehicleStatus.Booked,
+                StationId = station1.Id,
+                Description = "Xe đã được đặt trước, chờ khách lấy",
+                CreatedAt = DateTime.UtcNow
+            },
+            
+            // InUse (2 xe)
+            new Vehicle
+            {
+                LicensePlate = "59A-11105",
+                Model = "Impes",
+                Brand = "VinFast",
+                Year = 2023,
+                Color = "Đỏ",
+                BatteryCapacity = 85,
+                PricePerHour = 49000,
+                PricePerDay = 295000,
+                Status = VehicleStatus.InUse,
+                StationId = station1.Id,
+                Description = "Xe đang được thuê, khách đang sử dụng",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11106",
                 Model = "T9",
                 Brand = "Yadea",
                 Year = 2024,
-                Color = "Đỏ",
+                Color = "Xanh lá",
+                BatteryCapacity = 78,
+                PricePerHour = 47000,
+                PricePerDay = 285000,
+                Status = VehicleStatus.InUse,
+                StationId = station1.Id,
+                Description = "Xe đang được sử dụng",
+                CreatedAt = DateTime.UtcNow
+            },
+            
+            // Maintenance (2 xe)
+            new Vehicle
+            {
+                LicensePlate = "59A-11107",
+                Model = "Klara",
+                Brand = "VinFast",
+                Year = 2022,
+                Color = "Xám",
+                BatteryCapacity = 70,
+                PricePerHour = 45000,
+                PricePerDay = 280000,
+                Status = VehicleStatus.Maintenance,
+                StationId = station1.Id,
+                Description = "Xe đang bảo trì định kỳ",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11108",
+                Model = "Xmen",
+                Brand = "Yadea",
+                Year = 2023,
+                Color = "Vàng",
+                BatteryCapacity = 60,
+                PricePerHour = 42000,
+                PricePerDay = 260000,
+                Status = VehicleStatus.Maintenance,
+                StationId = station1.Id,
+                Description = "Xe đang thay thế pin",
+                CreatedAt = DateTime.UtcNow
+            },
+            
+            // Damaged (2 xe)
+            new Vehicle
+            {
+                LicensePlate = "59A-11109",
+                Model = "Bizin",
+                Brand = "Yadea",
+                Year = 2023,
+                Color = "Cam",
+                BatteryCapacity = 50,
+                PricePerHour = 44000,
+                PricePerDay = 270000,
+                Status = VehicleStatus.Damaged,
+                StationId = station1.Id,
+                Description = "Xe bị hư hỏng sau khi trả, cần sửa chữa",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11110",
+                Model = "Elite",
+                Brand = "Pega",
+                Year = 2022,
+                Color = "Tím",
+                BatteryCapacity = 40,
+                PricePerHour = 46000,
+                PricePerDay = 280000,
+                Status = VehicleStatus.Damaged,
+                StationId = station1.Id,
+                Description = "Xe bị va chạm nhẹ, đang chờ sửa chữa",
+                CreatedAt = DateTime.UtcNow
+            },
+            // Station 2 - Quận 3 (6 xe)
+            
+            // Available
+            new Vehicle
+            {
+                LicensePlate = "59B-22201",
+                Model = "G5",
+                Brand = "Yadea",
+                Year = 2024,
+                Color = "Trắng",
                 BatteryCapacity = 98,
                 PricePerHour = 47000,
                 PricePerDay = 285000,
                 Status = VehicleStatus.Available,
                 StationId = station2.Id,
-                Description = "Xe máy điện Yadea T9 2024",
+                Description = "Xe máy điện Yadea G5 2024",
                 CreatedAt = DateTime.UtcNow
             },
             new Vehicle
             {
-                LicensePlate = "59B-78902",
+                LicensePlate = "59B-22202",
                 Model = "Xmen",
                 Brand = "Yadea",
                 Year = 2023,
-                Color = "Xám",
+                Color = "Đen",
                 BatteryCapacity = 85,
                 PricePerHour = 42000,
                 PricePerDay = 260000,
@@ -383,9 +500,10 @@ public class AdminController : ControllerBase
                 Description = "Xe máy điện Yadea Xmen",
                 CreatedAt = DateTime.UtcNow
             },
+            // Booked
             new Vehicle
             {
-                LicensePlate = "59B-78903",
+                LicensePlate = "59B-22203",
                 Model = "Elite",
                 Brand = "Pega",
                 Year = 2024,
@@ -393,15 +511,66 @@ public class AdminController : ControllerBase
                 BatteryCapacity = 95,
                 PricePerHour = 46000,
                 PricePerDay = 280000,
-                Status = VehicleStatus.Available,
+                Status = VehicleStatus.Booked,
                 StationId = station2.Id,
-                Description = "Xe máy điện Pega Elite 2024",
+                Description = "Xe đã được đặt trước",
                 CreatedAt = DateTime.UtcNow
             },
-            // Station 3 - Bình Thạnh
+            // InUse
             new Vehicle
             {
-                LicensePlate = "59C-22345",
+                LicensePlate = "59B-22204",
+                Model = "T9",
+                Brand = "Yadea",
+                Year = 2024,
+                Color = "Xanh lá",
+                BatteryCapacity = 80,
+                PricePerHour = 47000,
+                PricePerDay = 285000,
+                Status = VehicleStatus.InUse,
+                StationId = station2.Id,
+                Description = "Xe đang được thuê",
+                CreatedAt = DateTime.UtcNow
+            },
+            // Maintenance
+            new Vehicle
+            {
+                LicensePlate = "59B-22205",
+                Model = "Feliz",
+                Brand = "VinFast",
+                Year = 2023,
+                Color = "Xám",
+                BatteryCapacity = 70,
+                PricePerHour = 52000,
+                PricePerDay = 310000,
+                Status = VehicleStatus.Maintenance,
+                StationId = station2.Id,
+                Description = "Xe đang bảo trì",
+                CreatedAt = DateTime.UtcNow
+            },
+            // Damaged
+            new Vehicle
+            {
+                LicensePlate = "59B-22206",
+                Model = "Klara",
+                Brand = "VinFast",
+                Year = 2022,
+                Color = "Nâu",
+                BatteryCapacity = 55,
+                PricePerHour = 48000,
+                PricePerDay = 290000,
+                Status = VehicleStatus.Damaged,
+                StationId = station2.Id,
+                Description = "Xe bị hư hỏng nhẹ",
+                CreatedAt = DateTime.UtcNow
+            },
+            
+            // Station 3 - Bình Thạnh (5 xe)
+            
+            // Available
+            new Vehicle
+            {
+                LicensePlate = "59C-33301",
                 Model = "Ludo",
                 Brand = "VinFast",
                 Year = 2024,
@@ -411,12 +580,12 @@ public class AdminController : ControllerBase
                 PricePerDay = 310000,
                 Status = VehicleStatus.Available,
                 StationId = station3.Id,
-                Description = "Xe máy điện VinFast Ludo 2024, thiết kế trẻ trung",
+                Description = "Xe máy điện VinFast Ludo 2024",
                 CreatedAt = DateTime.UtcNow
             },
             new Vehicle
             {
-                LicensePlate = "59C-22346",
+                LicensePlate = "59C-33302",
                 Model = "Impes",
                 Brand = "VinFast",
                 Year = 2023,
@@ -429,35 +598,52 @@ public class AdminController : ControllerBase
                 Description = "Xe máy điện VinFast Impes",
                 CreatedAt = DateTime.UtcNow
             },
+            // Booked
             new Vehicle
             {
-                LicensePlate = "59C-22347",
-                Model = "Bizin",
-                Brand = "Yadea",
+                LicensePlate = "59C-33303",
+                Model = "Plus",
+                Brand = "Pega",
                 Year = 2024,
-                Color = "Trắng",
-                BatteryCapacity = 93,
-                PricePerHour = 44000,
-                PricePerDay = 270000,
-                Status = VehicleStatus.Available,
+                Color = "Xanh",
+                BatteryCapacity = 88,
+                PricePerHour = 40000,
+                PricePerDay = 250000,
+                Status = VehicleStatus.Booked,
                 StationId = station3.Id,
-                Description = "Xe máy điện Yadea Bizin 2024",
+                Description = "Xe đã được đặt",
                 CreatedAt = DateTime.UtcNow
             },
-            // Một vài xe đang bảo trì
+            // InUse
             new Vehicle
             {
-                LicensePlate = "59A-99999",
-                Model = "Klara",
-                Brand = "VinFast",
+                LicensePlate = "59C-33304",
+                Model = "Bizin",
+                Brand = "Yadea",
+                Year = 2023,
+                Color = "Trắng",
+                BatteryCapacity = 75,
+                PricePerHour = 44000,
+                PricePerDay = 270000,
+                Status = VehicleStatus.InUse,
+                StationId = station3.Id,
+                Description = "Xe đang được sử dụng",
+                CreatedAt = DateTime.UtcNow
+            },
+            // Maintenance
+            new Vehicle
+            {
+                LicensePlate = "59C-33305",
+                Model = "Elite",
+                Brand = "Pega",
                 Year = 2022,
                 Color = "Xám",
-                BatteryCapacity = 70,
-                PricePerHour = 45000,
-                PricePerDay = 280000,
+                BatteryCapacity = 65,
+                PricePerHour = 43000,
+                PricePerDay = 265000,
                 Status = VehicleStatus.Maintenance,
-                StationId = station1.Id,
-                Description = "Xe đang bảo trì định kỳ",
+                StationId = station3.Id,
+                Description = "Xe đang bảo trì",
                 CreatedAt = DateTime.UtcNow
             }
         };
@@ -469,13 +655,56 @@ public class AdminController : ControllerBase
         {
             message = "Seed vehicles thành công!",
             count = vehicles.Length,
-            details = new
+            summary = new
             {
-                station1Vehicles = vehicles.Count(v => v.StationId == station1.Id),
-                station2Vehicles = vehicles.Count(v => v.StationId == station2.Id),
-                station3Vehicles = vehicles.Count(v => v.StationId == station3.Id),
-                availableVehicles = vehicles.Count(v => v.Status == VehicleStatus.Available),
-                maintenanceVehicles = vehicles.Count(v => v.Status == VehicleStatus.Maintenance)
+                totalVehicles = vehicles.Length,
+                byStation = new
+                {
+                    station1 = vehicles.Count(v => v.StationId == station1.Id),
+                    station2 = vehicles.Count(v => v.StationId == station2.Id),
+                    station3 = vehicles.Count(v => v.StationId == station3.Id)
+                },
+                byStatus = new
+                {
+                    available = vehicles.Count(v => v.Status == VehicleStatus.Available),
+                    booked = vehicles.Count(v => v.Status == VehicleStatus.Booked),
+                    inUse = vehicles.Count(v => v.Status == VehicleStatus.InUse),
+                    maintenance = vehicles.Count(v => v.Status == VehicleStatus.Maintenance),
+                    damaged = vehicles.Count(v => v.Status == VehicleStatus.Damaged)
+                }
+            },
+            stationBreakdown = new
+            {
+                station1 = new
+                {
+                    name = "Station 1 - Quận 1 (Main Station)",
+                    total = vehicles.Count(v => v.StationId == station1.Id),
+                    available = vehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Available),
+                    booked = vehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Booked),
+                    inUse = vehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.InUse),
+                    maintenance = vehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Maintenance),
+                    damaged = vehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Damaged)
+                },
+                station2 = new
+                {
+                    name = "Station 2 - Quận 3",
+                    total = vehicles.Count(v => v.StationId == station2.Id),
+                    available = vehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Available),
+                    booked = vehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Booked),
+                    inUse = vehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.InUse),
+                    maintenance = vehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Maintenance),
+                    damaged = vehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Damaged)
+                },
+                station3 = new
+                {
+                    name = "Station 3 - Bình Thạnh",
+                    total = vehicles.Count(v => v.StationId == station3.Id),
+                    available = vehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Available),
+                    booked = vehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Booked),
+                    inUse = vehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.InUse),
+                    maintenance = vehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Maintenance),
+                    damaged = vehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Damaged)
+                }
             }
         }));
     }
