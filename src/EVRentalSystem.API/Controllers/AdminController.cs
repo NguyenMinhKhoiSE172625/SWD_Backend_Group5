@@ -651,10 +651,105 @@ public class AdminController : ControllerBase
         context.Vehicles.AddRange(vehicles);
         await context.SaveChangesAsync();
 
+        // Tạo bookings và rentals cho vehicles có status Booked/InUse
+        var users = await context.Users.Where(u => u.Role == UserRole.Renter).ToListAsync();
+        if (users.Any())
+        {
+            var userA = users.FirstOrDefault();
+            var userB = users.Count > 1 ? users[1] : users[0];
+            
+            // Tạo bookings cho xe có status Booked
+            var bookedVehicles = vehicles.Where(v => v.Status == VehicleStatus.Booked).ToList();
+            var bookings = new List<Booking>();
+            
+            for (int i = 0; i < bookedVehicles.Count; i++)
+            {
+                var vehicle = bookedVehicles[i];
+                var booking = new Booking
+                {
+                    BookingCode = $"BK{DateTime.UtcNow.Ticks}{i}",
+                    UserId = i % 2 == 0 ? userA.Id : userB.Id,
+                    VehicleId = vehicle.Id,
+                    StationId = vehicle.StationId,
+                    BookingDate = DateTime.UtcNow.AddDays(-1),
+                    ScheduledPickupTime = DateTime.UtcNow.AddHours(2 + i),
+                    ScheduledReturnTime = DateTime.UtcNow.AddDays(1 + i),
+                    Status = BookingStatus.Confirmed,
+                    Notes = $"Booking tự động cho xe {vehicle.LicensePlate}",
+                    CreatedAt = DateTime.UtcNow.AddDays(-1)
+                };
+                bookings.Add(booking);
+            }
+            
+            if (bookings.Any())
+            {
+                context.Bookings.AddRange(bookings);
+                await context.SaveChangesAsync();
+            }
+            
+            // Tạo rentals cho xe có status InUse
+            var inUseVehicles = vehicles.Where(v => v.Status == VehicleStatus.InUse).ToList();
+            var rentals = new List<Rental>();
+            
+            for (int i = 0; i < inUseVehicles.Count; i++)
+            {
+                var vehicle = inUseVehicles[i];
+                
+                // Tạo booking trước
+                var rentalBooking = new Booking
+                {
+                    BookingCode = $"BK-R{DateTime.UtcNow.Ticks}{i}",
+                    UserId = i % 2 == 0 ? userA.Id : userB.Id,
+                    VehicleId = vehicle.Id,
+                    StationId = vehicle.StationId,
+                    BookingDate = DateTime.UtcNow.AddDays(-2),
+                    ScheduledPickupTime = DateTime.UtcNow.AddDays(-1),
+                    ScheduledReturnTime = DateTime.UtcNow.AddDays(2),
+                    Status = BookingStatus.Confirmed,
+                    Notes = $"Booking cho rental {vehicle.LicensePlate}",
+                    CreatedAt = DateTime.UtcNow.AddDays(-2)
+                };
+                context.Bookings.Add(rentalBooking);
+                await context.SaveChangesAsync(); // Save để có BookingId
+                
+                // Tạo rental
+                var rental = new Rental
+                {
+                    RentalCode = $"RN{DateTime.UtcNow.Ticks}{i}",
+                    BookingId = rentalBooking.Id,
+                    UserId = rentalBooking.UserId,
+                    VehicleId = vehicle.Id,
+                    StationId = vehicle.StationId,
+                    PickupTime = DateTime.UtcNow.AddHours(-2 - i),
+                    ExpectedReturnTime = DateTime.UtcNow.AddDays(2),
+                    TotalAmount = vehicle.PricePerDay * 2,
+                    Status = RentalStatus.Active,
+                    Notes = $"Rental đang hoạt động cho xe {vehicle.LicensePlate}",
+                    CreatedAt = DateTime.UtcNow.AddHours(-2 - i)
+                };
+                rentals.Add(rental);
+            }
+            
+            if (rentals.Any())
+            {
+                context.Rentals.AddRange(rentals);
+                await context.SaveChangesAsync();
+            }
+        }
+
+        // Đếm bookings và rentals đã tạo
+        var bookedCount = vehicles.Count(v => v.Status == VehicleStatus.Booked);
+        var inUseCount = vehicles.Count(v => v.Status == VehicleStatus.InUse);
+        
         return Ok(ApiResponse<object>.SuccessResponse(new
         {
-            message = "Seed vehicles thành công!",
+            message = "Seed vehicles thành công! (Đã tự động tạo bookings/rentals cho xe Booked/InUse)",
             count = vehicles.Length,
+            autoCreated = new
+            {
+                bookingsForBooked = bookedCount,
+                bookingsAndRentalsForInUse = inUseCount
+            },
             summary = new
             {
                 totalVehicles = vehicles.Length,
