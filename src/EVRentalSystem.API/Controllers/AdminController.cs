@@ -120,9 +120,10 @@ public class AdminController : ControllerBase
         var station2 = stations.Count > 1 ? stations[1] : stations[0];
         var station3 = stations.Count > 2 ? stations[2] : stations[0];
 
-        // Seed Bookings
+        // Seed Bookings - Nhiều Pending bookings
         var bookings = new[]
         {
+            // Pending Bookings (Nhiều hơn để test)
             new Booking
             {
                 BookingCode = "BK001",
@@ -142,6 +143,59 @@ public class AdminController : ControllerBase
                 UserId = userA.Id,
                 VehicleId = vehicles.Count > 1 ? vehicles[1].Id : vehicles[0].Id,
                 StationId = station1.Id,
+                BookingDate = DateTime.UtcNow.AddHours(-12),
+                ScheduledPickupTime = DateTime.UtcNow.AddHours(6),
+                ScheduledReturnTime = DateTime.UtcNow.AddDays(1),
+                Status = BookingStatus.Pending,
+                Notes = "Đặt xe đi họp khách hàng",
+                CreatedAt = DateTime.UtcNow.AddHours(-12)
+            },
+            new Booking
+            {
+                BookingCode = "BK003",
+                UserId = userB.Id,
+                VehicleId = vehicles.Count > 2 ? vehicles[2].Id : vehicles[0].Id,
+                StationId = station2.Id,
+                BookingDate = DateTime.UtcNow.AddHours(-8),
+                ScheduledPickupTime = DateTime.UtcNow.AddHours(10),
+                ScheduledReturnTime = DateTime.UtcNow.AddDays(2),
+                Status = BookingStatus.Pending,
+                Notes = "Thuê xe đi chơi cuối tuần",
+                CreatedAt = DateTime.UtcNow.AddHours(-8)
+            },
+            new Booking
+            {
+                BookingCode = "BK004",
+                UserId = userA.Id,
+                VehicleId = vehicles.Count > 3 ? vehicles[3].Id : vehicles[0].Id,
+                StationId = station2.Id,
+                BookingDate = DateTime.UtcNow.AddHours(-3),
+                ScheduledPickupTime = DateTime.UtcNow.AddDays(3),
+                ScheduledReturnTime = DateTime.UtcNow.AddDays(5),
+                Status = BookingStatus.Pending,
+                Notes = "Đặt trước cho tuần sau",
+                CreatedAt = DateTime.UtcNow.AddHours(-3)
+            },
+            new Booking
+            {
+                BookingCode = "BK005",
+                UserId = userB.Id,
+                VehicleId = vehicles.Count > 4 ? vehicles[4].Id : vehicles[0].Id,
+                StationId = station1.Id,
+                BookingDate = DateTime.UtcNow.AddHours(-1),
+                ScheduledPickupTime = DateTime.UtcNow.AddHours(4),
+                ScheduledReturnTime = DateTime.UtcNow.AddHours(8),
+                Status = BookingStatus.Pending,
+                Notes = "Thuê xe vài giờ đi giao hàng",
+                CreatedAt = DateTime.UtcNow.AddHours(-1)
+            },
+            // Confirmed Bookings
+            new Booking
+            {
+                BookingCode = "BK006",
+                UserId = userA.Id,
+                VehicleId = vehicles[0].Id,
+                StationId = station1.Id,
                 BookingDate = DateTime.UtcNow.AddDays(-5),
                 ScheduledPickupTime = DateTime.UtcNow.AddHours(2),
                 ScheduledReturnTime = DateTime.UtcNow.AddDays(1),
@@ -151,7 +205,7 @@ public class AdminController : ControllerBase
             },
             new Booking
             {
-                BookingCode = "BK003",
+                BookingCode = "BK007",
                 UserId = userB.Id,
                 VehicleId = vehicles.Count > 2 ? vehicles[2].Id : vehicles[0].Id,
                 StationId = station2.Id,
@@ -162,9 +216,10 @@ public class AdminController : ControllerBase
                 Notes = "Thuê xe đi du lịch 3 ngày",
                 CreatedAt = DateTime.UtcNow.AddDays(-3)
             },
+            // Completed Bookings
             new Booking
             {
-                BookingCode = "BK004",
+                BookingCode = "BK008",
                 UserId = userB.Id,
                 VehicleId = vehicles.Count > 3 ? vehicles[3].Id : vehicles[0].Id,
                 StationId = station2.Id,
@@ -178,21 +233,7 @@ public class AdminController : ControllerBase
             },
             new Booking
             {
-                BookingCode = "BK005",
-                UserId = userA.Id,
-                VehicleId = vehicles.Count > 4 ? vehicles[4].Id : vehicles[0].Id,
-                StationId = station3.Id,
-                BookingDate = DateTime.UtcNow.AddDays(-4),
-                ScheduledPickupTime = DateTime.UtcNow.AddDays(-3),
-                ScheduledReturnTime = DateTime.UtcNow.AddDays(-2),
-                Status = BookingStatus.Cancelled,
-                Notes = "Khách hủy vì thay đổi kế hoạch",
-                CreatedAt = DateTime.UtcNow.AddDays(-4),
-                UpdatedAt = DateTime.UtcNow.AddDays(-3)
-            },
-            new Booking
-            {
-                BookingCode = "BK006",
+                BookingCode = "BK009",
                 UserId = userA.Id,
                 VehicleId = vehicles[0].Id,
                 StationId = station1.Id,
@@ -204,18 +245,20 @@ public class AdminController : ControllerBase
                 CreatedAt = DateTime.UtcNow.AddDays(-15),
                 UpdatedAt = DateTime.UtcNow.AddDays(-13)
             },
+            // Cancelled Bookings
             new Booking
             {
-                BookingCode = "BK007",
-                UserId = userB.Id,
-                VehicleId = vehicles.Count > 2 ? vehicles[2].Id : vehicles[0].Id,
-                StationId = station2.Id,
-                BookingDate = DateTime.UtcNow.AddHours(-6),
-                ScheduledPickupTime = DateTime.UtcNow.AddDays(2),
-                ScheduledReturnTime = DateTime.UtcNow.AddDays(4),
-                Status = BookingStatus.Pending,
-                Notes = "Đặt trước cho tuần sau",
-                CreatedAt = DateTime.UtcNow.AddHours(-6)
+                BookingCode = "BK010",
+                UserId = userA.Id,
+                VehicleId = vehicles.Count > 4 ? vehicles[4].Id : vehicles[0].Id,
+                StationId = station3.Id,
+                BookingDate = DateTime.UtcNow.AddDays(-4),
+                ScheduledPickupTime = DateTime.UtcNow.AddDays(-3),
+                ScheduledReturnTime = DateTime.UtcNow.AddDays(-2),
+                Status = BookingStatus.Cancelled,
+                Notes = "Khách hủy vì thay đổi kế hoạch",
+                CreatedAt = DateTime.UtcNow.AddDays(-4),
+                UpdatedAt = DateTime.UtcNow.AddDays(-3)
             }
         };
 
