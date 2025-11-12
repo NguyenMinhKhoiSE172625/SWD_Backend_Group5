@@ -14,12 +14,13 @@ RUN dotnet restore
 
 # Copy everything else and build
 COPY . .
-WORKDIR /src/src/EVRentalSystem.API
-RUN dotnet build -c Release -o /app/build
+WORKDIR /src
+RUN dotnet build src/EVRentalSystem.API/EVRentalSystem.API.csproj -c Release -o /app/build
 
 # Publish the application
 FROM build AS publish
-RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
+WORKDIR /src
+RUN dotnet publish src/EVRentalSystem.API/EVRentalSystem.API.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 # Use the runtime image for running
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final

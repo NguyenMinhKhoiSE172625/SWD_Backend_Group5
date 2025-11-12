@@ -719,12 +719,10 @@ public class AdminController : ControllerBase
                     BookingId = rentalBooking.Id,
                     UserId = rentalBooking.UserId,
                     VehicleId = vehicle.Id,
-                    StationId = vehicle.StationId,
                     PickupTime = DateTime.UtcNow.AddHours(-2 - i),
-                    ExpectedReturnTime = DateTime.UtcNow.AddDays(2),
+                    PickupBatteryLevel = vehicle.BatteryCapacity,
                     TotalAmount = vehicle.PricePerDay * 2,
                     Status = RentalStatus.Active,
-                    Notes = $"Rental đang hoạt động cho xe {vehicle.LicensePlate}",
                     CreatedAt = DateTime.UtcNow.AddHours(-2 - i)
                 };
                 rentals.Add(rental);
