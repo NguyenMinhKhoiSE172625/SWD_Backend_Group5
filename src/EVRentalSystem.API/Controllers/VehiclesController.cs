@@ -21,6 +21,17 @@ public class VehiclesController : ControllerBase
     }
 
     /// <summary>
+    /// Lấy tất cả xe (tất cả status)
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(ApiResponse<List<VehicleResponse>>), 200)]
+    public async Task<IActionResult> GetAll([FromQuery] int? stationId = null, [FromQuery] string? status = null)
+    {
+        var vehicles = await _vehicleService.GetAllVehiclesAsync(stationId, status);
+        return Ok(ApiResponse<List<VehicleResponse>>.SuccessResponse(vehicles));
+    }
+
+    /// <summary>
     /// Lấy danh sách xe có sẵn
     /// </summary>
     [HttpGet("available")]

@@ -263,12 +263,220 @@ public class AdminController : ControllerBase
         };
 
         context.Bookings.AddRange(bookings);
+        
+        // Update vehicle status for confirmed/pending bookings
+        foreach (var booking in bookings.Where(b => b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed))
+        {
+            var vehicle = vehicles.FirstOrDefault(v => v.Id == booking.VehicleId);
+            if (vehicle != null)
+            {
+                vehicle.Status = VehicleStatus.Booked;
+                vehicle.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+        
         await context.SaveChangesAsync();
 
         return Ok(ApiResponse<object>.SuccessResponse(new
         {
             message = "Seed bookings thành công!",
             count = bookings.Length
+        }));
+    }
+
+    /// <summary>
+    /// Seed vehicles data (Admin only - Development)
+    /// </summary>
+    [HttpPost("seed/vehicles")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    public async Task<IActionResult> SeedVehicles([FromServices] ApplicationDbContext context)
+    {
+        // Get existing stations
+        var stations = await context.Stations.ToListAsync();
+
+        if (!stations.Any())
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse("Cần có Stations trước khi seed Vehicles."));
+        }
+
+        var station1 = stations.FirstOrDefault() ?? stations[0];
+        var station2 = stations.Count > 1 ? stations[1] : stations[0];
+        var station3 = stations.Count > 2 ? stations[2] : stations[0];
+
+        // Seed more vehicles
+        var vehicles = new[]
+        {
+            // Station 1 - Quận 1
+            new Vehicle
+            {
+                LicensePlate = "59A-34567",
+                Model = "Feliz S",
+                Brand = "VinFast",
+                Year = 2024,
+                Color = "Trắng",
+                BatteryCapacity = 100,
+                PricePerHour = 55000,
+                PricePerDay = 320000,
+                Status = VehicleStatus.Available,
+                StationId = station1.Id,
+                Description = "Xe máy điện VinFast Feliz S 2024, pin mới",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-34568",
+                Model = "Evo200",
+                Brand = "Pega",
+                Year = 2023,
+                Color = "Đen",
+                BatteryCapacity = 92,
+                PricePerHour = 48000,
+                PricePerDay = 290000,
+                Status = VehicleStatus.Available,
+                StationId = station1.Id,
+                Description = "Xe máy điện Pega Evo200",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-34569",
+                Model = "Klara S",
+                Brand = "VinFast",
+                Year = 2023,
+                Color = "Xanh dương",
+                BatteryCapacity = 88,
+                PricePerHour = 50000,
+                PricePerDay = 300000,
+                Status = VehicleStatus.Available,
+                StationId = station1.Id,
+                Description = "Xe máy điện VinFast Klara S màu xanh dương",
+                CreatedAt = DateTime.UtcNow
+            },
+            // Station 2 - Quận 3
+            new Vehicle
+            {
+                LicensePlate = "59B-78901",
+                Model = "T9",
+                Brand = "Yadea",
+                Year = 2024,
+                Color = "Đỏ",
+                BatteryCapacity = 98,
+                PricePerHour = 47000,
+                PricePerDay = 285000,
+                Status = VehicleStatus.Available,
+                StationId = station2.Id,
+                Description = "Xe máy điện Yadea T9 2024",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59B-78902",
+                Model = "Xmen",
+                Brand = "Yadea",
+                Year = 2023,
+                Color = "Xám",
+                BatteryCapacity = 85,
+                PricePerHour = 42000,
+                PricePerDay = 260000,
+                Status = VehicleStatus.Available,
+                StationId = station2.Id,
+                Description = "Xe máy điện Yadea Xmen",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59B-78903",
+                Model = "Elite",
+                Brand = "Pega",
+                Year = 2024,
+                Color = "Vàng",
+                BatteryCapacity = 95,
+                PricePerHour = 46000,
+                PricePerDay = 280000,
+                Status = VehicleStatus.Available,
+                StationId = station2.Id,
+                Description = "Xe máy điện Pega Elite 2024",
+                CreatedAt = DateTime.UtcNow
+            },
+            // Station 3 - Bình Thạnh
+            new Vehicle
+            {
+                LicensePlate = "59C-22345",
+                Model = "Ludo",
+                Brand = "VinFast",
+                Year = 2024,
+                Color = "Hồng",
+                BatteryCapacity = 100,
+                PricePerHour = 52000,
+                PricePerDay = 310000,
+                Status = VehicleStatus.Available,
+                StationId = station3.Id,
+                Description = "Xe máy điện VinFast Ludo 2024, thiết kế trẻ trung",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59C-22346",
+                Model = "Impes",
+                Brand = "VinFast",
+                Year = 2023,
+                Color = "Đen",
+                BatteryCapacity = 90,
+                PricePerHour = 49000,
+                PricePerDay = 295000,
+                Status = VehicleStatus.Available,
+                StationId = station3.Id,
+                Description = "Xe máy điện VinFast Impes",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59C-22347",
+                Model = "Bizin",
+                Brand = "Yadea",
+                Year = 2024,
+                Color = "Trắng",
+                BatteryCapacity = 93,
+                PricePerHour = 44000,
+                PricePerDay = 270000,
+                Status = VehicleStatus.Available,
+                StationId = station3.Id,
+                Description = "Xe máy điện Yadea Bizin 2024",
+                CreatedAt = DateTime.UtcNow
+            },
+            // Một vài xe đang bảo trì
+            new Vehicle
+            {
+                LicensePlate = "59A-99999",
+                Model = "Klara",
+                Brand = "VinFast",
+                Year = 2022,
+                Color = "Xám",
+                BatteryCapacity = 70,
+                PricePerHour = 45000,
+                PricePerDay = 280000,
+                Status = VehicleStatus.Maintenance,
+                StationId = station1.Id,
+                Description = "Xe đang bảo trì định kỳ",
+                CreatedAt = DateTime.UtcNow
+            }
+        };
+
+        context.Vehicles.AddRange(vehicles);
+        await context.SaveChangesAsync();
+
+        return Ok(ApiResponse<object>.SuccessResponse(new
+        {
+            message = "Seed vehicles thành công!",
+            count = vehicles.Length,
+            details = new
+            {
+                station1Vehicles = vehicles.Count(v => v.StationId == station1.Id),
+                station2Vehicles = vehicles.Count(v => v.StationId == station2.Id),
+                station3Vehicles = vehicles.Count(v => v.StationId == station3.Id),
+                availableVehicles = vehicles.Count(v => v.Status == VehicleStatus.Available),
+                maintenanceVehicles = vehicles.Count(v => v.Status == VehicleStatus.Maintenance)
+            }
         }));
     }
 }

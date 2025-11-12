@@ -4,6 +4,7 @@ namespace EVRentalSystem.Application.Interfaces;
 
 public interface IVehicleService
 {
+    Task<List<VehicleResponse>> GetAllVehiclesAsync(int? stationId = null, string? status = null);
     Task<List<VehicleResponse>> GetAvailableVehiclesAsync(int? stationId = null);
     Task<VehicleResponse?> GetVehicleByIdAsync(int vehicleId);
     Task<List<VehicleResponse>> GetStationVehiclesAsync(int stationId, string? status = null);

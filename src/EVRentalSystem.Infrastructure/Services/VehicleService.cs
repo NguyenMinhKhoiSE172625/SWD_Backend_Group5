@@ -15,6 +15,26 @@ public class VehicleService : IVehicleService
         _context = context;
     }
 
+    public async Task<List<VehicleResponse>> GetAllVehiclesAsync(int? stationId = null, string? status = null)
+    {
+        var query = _context.Vehicles
+            .Include(v => v.Station)
+            .AsQueryable();
+
+        if (stationId.HasValue)
+        {
+            query = query.Where(v => v.StationId == stationId.Value);
+        }
+
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<VehicleStatus>(status, out var vehicleStatus))
+        {
+            query = query.Where(v => v.Status == vehicleStatus);
+        }
+
+        var vehicles = await query.OrderBy(v => v.LicensePlate).ToListAsync();
+        return vehicles.Select(MapToResponse).ToList();
+    }
+
     public async Task<List<VehicleResponse>> GetAvailableVehiclesAsync(int? stationId = null)
     {
         var query = _context.Vehicles
