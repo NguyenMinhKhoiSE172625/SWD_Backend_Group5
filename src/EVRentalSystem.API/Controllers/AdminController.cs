@@ -303,10 +303,15 @@ public class AdminController : ControllerBase
         var station2 = stations.Count > 1 ? stations[1] : stations[0];
         var station3 = stations.Count > 2 ? stations[2] : stations[0];
 
+        // Lấy danh sách biển số xe đã tồn tại
+        var existingLicensePlates = await context.Vehicles
+            .Select(v => v.LicensePlate)
+            .ToListAsync();
+
         // Seed more vehicles
         var vehicles = new[]
         {
-            // Station 1 - Quận 1 (10 xe với đầy đủ status)
+            // Station 1 - Quận 1 (18 xe với đầy đủ status - 10 xe Booked, 2 Available, 2 InUse, 2 Maintenance, 2 Damaged)
             
             // Available (2 xe)
             new Vehicle
@@ -340,7 +345,7 @@ public class AdminController : ControllerBase
                 CreatedAt = DateTime.UtcNow
             },
             
-            // Booked (2 xe)
+            // Booked (10 xe - tăng từ 5 lên 10)
             new Vehicle
             {
                 LicensePlate = "59A-11103",
@@ -369,6 +374,126 @@ public class AdminController : ControllerBase
                 Status = VehicleStatus.Booked,
                 StationId = station1.Id,
                 Description = "Xe đã được đặt trước, chờ khách lấy",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11111",
+                Model = "Theon S",
+                Brand = "VinFast",
+                Year = 2024,
+                Color = "Xanh ngọc",
+                BatteryCapacity = 92,
+                PricePerHour = 51000,
+                PricePerDay = 305000,
+                Status = VehicleStatus.Booked,
+                StationId = station1.Id,
+                Description = "Xe đã được đặt cho chuyến đi dài ngày",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11112",
+                Model = "Evo200 Lite",
+                Brand = "Pega",
+                Year = 2024,
+                Color = "Bạc",
+                BatteryCapacity = 90,
+                PricePerHour = 49000,
+                PricePerDay = 295000,
+                Status = VehicleStatus.Booked,
+                StationId = station1.Id,
+                Description = "Xe đã được đặt trước 1 tuần",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11113",
+                Model = "Feliz",
+                Brand = "VinFast",
+                Year = 2023,
+                Color = "Xanh navy",
+                BatteryCapacity = 87,
+                PricePerHour = 50000,
+                PricePerDay = 300000,
+                Status = VehicleStatus.Booked,
+                StationId = station1.Id,
+                Description = "Xe đã được đặt cho khách VIP",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11114",
+                Model = "Klara S Plus",
+                Brand = "VinFast",
+                Year = 2024,
+                Color = "Đỏ đô",
+                BatteryCapacity = 95,
+                PricePerHour = 53000,
+                PricePerDay = 315000,
+                Status = VehicleStatus.Booked,
+                StationId = station1.Id,
+                Description = "Xe đã được đặt cho chuyến công tác",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11115",
+                Model = "Yadea S3",
+                Brand = "Yadea",
+                Year = 2024,
+                Color = "Xám bạc",
+                BatteryCapacity = 89,
+                PricePerHour = 48000,
+                PricePerDay = 290000,
+                Status = VehicleStatus.Booked,
+                StationId = station1.Id,
+                Description = "Xe đã được đặt cho sinh viên",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11116",
+                Model = "Impes Plus",
+                Brand = "VinFast",
+                Year = 2024,
+                Color = "Vàng chanh",
+                BatteryCapacity = 93,
+                PricePerHour = 51000,
+                PricePerDay = 305000,
+                Status = VehicleStatus.Booked,
+                StationId = station1.Id,
+                Description = "Xe đã được đặt cho tour du lịch",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11117",
+                Model = "Elite Pro",
+                Brand = "Pega",
+                Year = 2024,
+                Color = "Xanh lam",
+                BatteryCapacity = 91,
+                PricePerHour = 50000,
+                PricePerDay = 300000,
+                Status = VehicleStatus.Booked,
+                StationId = station1.Id,
+                Description = "Xe đã được đặt cho khách doanh nghiệp",
+                CreatedAt = DateTime.UtcNow
+            },
+            new Vehicle
+            {
+                LicensePlate = "59A-11118",
+                Model = "Ludo S",
+                Brand = "VinFast",
+                Year = 2024,
+                Color = "Hồng phấn",
+                BatteryCapacity = 98,
+                PricePerHour = 52000,
+                PricePerDay = 310000,
+                Status = VehicleStatus.Booked,
+                StationId = station1.Id,
+                Description = "Xe đã được đặt cho sự kiện",
                 CreatedAt = DateTime.UtcNow
             },
             
@@ -648,35 +773,59 @@ public class AdminController : ControllerBase
             }
         };
 
-        context.Vehicles.AddRange(vehicles);
+        // Lọc chỉ thêm xe mới (chưa tồn tại trong database)
+        var newVehicles = vehicles
+            .Where(v => !existingLicensePlates.Contains(v.LicensePlate))
+            .ToList();
+
+        if (!newVehicles.Any())
+        {
+            return Ok(ApiResponse<object>.SuccessResponse(new
+            {
+                message = "Tất cả xe đã tồn tại trong database. Không có xe mới được thêm.",
+                existingCount = existingLicensePlates.Count,
+                attemptedToAdd = vehicles.Length
+            }));
+        }
+
+        context.Vehicles.AddRange(newVehicles);
         await context.SaveChangesAsync();
 
-        // Tạo bookings và rentals cho vehicles có status Booked/InUse
+        // Tạo bookings và rentals cho vehicles có status Booked/InUse (CHỈ CHO XE MỚI)
         var users = await context.Users.Where(u => u.Role == UserRole.Renter).ToListAsync();
         if (users.Any())
         {
             var userA = users.FirstOrDefault();
             var userB = users.Count > 1 ? users[1] : users[0];
             
-            // Tạo bookings cho xe có status Booked
-            var bookedVehicles = vehicles.Where(v => v.Status == VehicleStatus.Booked).ToList();
+            // Tạo bookings cho xe MỚI có status Booked
+            var bookedVehicles = newVehicles.Where(v => v.Status == VehicleStatus.Booked).ToList();
             var bookings = new List<Booking>();
             
             for (int i = 0; i < bookedVehicles.Count; i++)
             {
                 var vehicle = bookedVehicles[i];
+                
+                // Tạo booking code unique bằng cách kết hợp timestamp và random
+                var bookingCode = $"BK-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString().Substring(0, 4).ToUpper()}";
+                
+                // Thời gian đặt xe đa dạng hơn
+                var daysAgoBooked = i % 3 == 0 ? -2 : (i % 3 == 1 ? -1 : 0);
+                var hoursUntilPickup = 2 + (i * 3); // Mỗi xe cách nhau 3 giờ
+                var daysToReturn = 1 + (i % 3); // 1-3 ngày thuê
+                
                 var booking = new Booking
                 {
-                    BookingCode = $"BK{DateTime.UtcNow.Ticks}{i}",
+                    BookingCode = bookingCode,
                     UserId = i % 2 == 0 ? userA.Id : userB.Id,
                     VehicleId = vehicle.Id,
                     StationId = vehicle.StationId,
-                    BookingDate = DateTime.UtcNow.AddDays(-1),
-                    ScheduledPickupTime = DateTime.UtcNow.AddHours(2 + i),
-                    ScheduledReturnTime = DateTime.UtcNow.AddDays(1 + i),
+                    BookingDate = DateTime.UtcNow.AddDays(daysAgoBooked),
+                    ScheduledPickupTime = DateTime.UtcNow.AddHours(hoursUntilPickup),
+                    ScheduledReturnTime = DateTime.UtcNow.AddHours(hoursUntilPickup).AddDays(daysToReturn),
                     Status = BookingStatus.Confirmed,
-                    Notes = $"Booking tự động cho xe {vehicle.LicensePlate}",
-                    CreatedAt = DateTime.UtcNow.AddDays(-1)
+                    Notes = $"Booking tự động cho xe {vehicle.LicensePlate} - Thuê {daysToReturn} ngày",
+                    CreatedAt = DateTime.UtcNow.AddDays(daysAgoBooked)
                 };
                 bookings.Add(booking);
             }
@@ -687,43 +836,55 @@ public class AdminController : ControllerBase
                 await context.SaveChangesAsync();
             }
             
-            // Tạo rentals cho xe có status InUse
-            var inUseVehicles = vehicles.Where(v => v.Status == VehicleStatus.InUse).ToList();
+            // Tạo rentals cho xe MỚI có status InUse
+            var inUseVehicles = newVehicles.Where(v => v.Status == VehicleStatus.InUse).ToList();
             var rentals = new List<Rental>();
             
             for (int i = 0; i < inUseVehicles.Count; i++)
             {
                 var vehicle = inUseVehicles[i];
                 
-                // Tạo booking trước
+                // Tạo booking code unique
+                var bookingCode = $"BK-R-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString().Substring(0, 4).ToUpper()}";
+                var rentalCode = $"RN-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString().Substring(0, 4).ToUpper()}";
+                
+                // Thời gian đa dạng: xe đã được thuê từ vài giờ đến vài ngày trước
+                var hoursAgoPickup = 2 + (i * 4); // 2, 6, 10, 14... giờ trước
+                var daysToReturn = 2 + (i % 2); // 2-3 ngày thuê
+                
+                // Tạo booking trước (phải có booking trước khi có rental)
                 var rentalBooking = new Booking
                 {
-                    BookingCode = $"BK-R{DateTime.UtcNow.Ticks}{i}",
+                    BookingCode = bookingCode,
                     UserId = i % 2 == 0 ? userA.Id : userB.Id,
                     VehicleId = vehicle.Id,
                     StationId = vehicle.StationId,
-                    BookingDate = DateTime.UtcNow.AddDays(-2),
-                    ScheduledPickupTime = DateTime.UtcNow.AddDays(-1),
-                    ScheduledReturnTime = DateTime.UtcNow.AddDays(2),
+                    BookingDate = DateTime.UtcNow.AddHours(-hoursAgoPickup - 24), // Đặt trước 1 ngày
+                    ScheduledPickupTime = DateTime.UtcNow.AddHours(-hoursAgoPickup),
+                    ScheduledReturnTime = DateTime.UtcNow.AddHours(-hoursAgoPickup).AddDays(daysToReturn),
                     Status = BookingStatus.Confirmed,
-                    Notes = $"Booking cho rental {vehicle.LicensePlate}",
-                    CreatedAt = DateTime.UtcNow.AddDays(-2)
+                    Notes = $"Booking cho rental đang active - xe {vehicle.LicensePlate}",
+                    CreatedAt = DateTime.UtcNow.AddHours(-hoursAgoPickup - 24)
                 };
                 context.Bookings.Add(rentalBooking);
                 await context.SaveChangesAsync(); // Save để có BookingId
                 
+                // Tính toán số ngày đã thuê (từ pickup đến hiện tại)
+                var hoursRented = hoursAgoPickup;
+                var daysRented = Math.Ceiling((decimal)hoursRented / 24);
+                
                 // Tạo rental
                 var rental = new Rental
                 {
-                    RentalCode = $"RN{DateTime.UtcNow.Ticks}{i}",
+                    RentalCode = rentalCode,
                     BookingId = rentalBooking.Id,
                     UserId = rentalBooking.UserId,
                     VehicleId = vehicle.Id,
-                    PickupTime = DateTime.UtcNow.AddHours(-2 - i),
+                    PickupTime = DateTime.UtcNow.AddHours(-hoursAgoPickup),
                     PickupBatteryLevel = vehicle.BatteryCapacity,
-                    TotalAmount = vehicle.PricePerDay * 2,
+                    TotalAmount = vehicle.PricePerDay * (int)daysRented, // Tính theo số ngày đã thuê
                     Status = RentalStatus.Active,
-                    CreatedAt = DateTime.UtcNow.AddHours(-2 - i)
+                    CreatedAt = DateTime.UtcNow.AddHours(-hoursAgoPickup)
                 };
                 rentals.Add(rental);
             }
@@ -735,68 +896,73 @@ public class AdminController : ControllerBase
             }
         }
 
-        // Đếm bookings và rentals đã tạo
-        var bookedCount = vehicles.Count(v => v.Status == VehicleStatus.Booked);
-        var inUseCount = vehicles.Count(v => v.Status == VehicleStatus.InUse);
+        // Đếm bookings và rentals đã tạo (CHỈ CHO XE MỚI)
+        var bookedCount = newVehicles.Count(v => v.Status == VehicleStatus.Booked);
+        var inUseCount = newVehicles.Count(v => v.Status == VehicleStatus.InUse);
+        
+        // Lấy tổng số xe hiện tại trong database
+        var totalVehiclesInDb = await context.Vehicles.CountAsync();
         
         return Ok(ApiResponse<object>.SuccessResponse(new
         {
-            message = "Seed vehicles thành công! (Đã tự động tạo bookings/rentals cho xe Booked/InUse)",
-            count = vehicles.Length,
+            message = "Seed vehicles thành công! Chỉ thêm xe mới, giữ nguyên xe cũ. (Đã tự động tạo bookings/rentals cho xe Booked/InUse)",
+            newVehiclesAdded = newVehicles.Count,
+            existingVehicles = existingLicensePlates.Count,
+            totalVehiclesNow = totalVehiclesInDb,
+            skippedDuplicates = vehicles.Length - newVehicles.Count,
             autoCreated = new
             {
                 bookingsForBooked = bookedCount,
                 bookingsAndRentalsForInUse = inUseCount
             },
-            summary = new
+            newVehiclesSummary = new
             {
-                totalVehicles = vehicles.Length,
                 byStation = new
                 {
-                    station1 = vehicles.Count(v => v.StationId == station1.Id),
-                    station2 = vehicles.Count(v => v.StationId == station2.Id),
-                    station3 = vehicles.Count(v => v.StationId == station3.Id)
+                    station1 = newVehicles.Count(v => v.StationId == station1.Id),
+                    station2 = newVehicles.Count(v => v.StationId == station2.Id),
+                    station3 = newVehicles.Count(v => v.StationId == station3.Id)
                 },
                 byStatus = new
                 {
-                    available = vehicles.Count(v => v.Status == VehicleStatus.Available),
-                    booked = vehicles.Count(v => v.Status == VehicleStatus.Booked),
-                    inUse = vehicles.Count(v => v.Status == VehicleStatus.InUse),
-                    maintenance = vehicles.Count(v => v.Status == VehicleStatus.Maintenance),
-                    damaged = vehicles.Count(v => v.Status == VehicleStatus.Damaged)
+                    available = newVehicles.Count(v => v.Status == VehicleStatus.Available),
+                    booked = newVehicles.Count(v => v.Status == VehicleStatus.Booked),
+                    inUse = newVehicles.Count(v => v.Status == VehicleStatus.InUse),
+                    maintenance = newVehicles.Count(v => v.Status == VehicleStatus.Maintenance),
+                    damaged = newVehicles.Count(v => v.Status == VehicleStatus.Damaged)
                 }
             },
-            stationBreakdown = new
+            newVehiclesBreakdown = new
             {
                 station1 = new
                 {
                     name = "Station 1 - Quận 1 (Main Station)",
-                    total = vehicles.Count(v => v.StationId == station1.Id),
-                    available = vehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Available),
-                    booked = vehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Booked),
-                    inUse = vehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.InUse),
-                    maintenance = vehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Maintenance),
-                    damaged = vehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Damaged)
+                    total = newVehicles.Count(v => v.StationId == station1.Id),
+                    available = newVehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Available),
+                    booked = newVehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Booked),
+                    inUse = newVehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.InUse),
+                    maintenance = newVehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Maintenance),
+                    damaged = newVehicles.Count(v => v.StationId == station1.Id && v.Status == VehicleStatus.Damaged)
                 },
                 station2 = new
                 {
                     name = "Station 2 - Quận 3",
-                    total = vehicles.Count(v => v.StationId == station2.Id),
-                    available = vehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Available),
-                    booked = vehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Booked),
-                    inUse = vehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.InUse),
-                    maintenance = vehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Maintenance),
-                    damaged = vehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Damaged)
+                    total = newVehicles.Count(v => v.StationId == station2.Id),
+                    available = newVehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Available),
+                    booked = newVehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Booked),
+                    inUse = newVehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.InUse),
+                    maintenance = newVehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Maintenance),
+                    damaged = newVehicles.Count(v => v.StationId == station2.Id && v.Status == VehicleStatus.Damaged)
                 },
                 station3 = new
                 {
                     name = "Station 3 - Bình Thạnh",
-                    total = vehicles.Count(v => v.StationId == station3.Id),
-                    available = vehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Available),
-                    booked = vehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Booked),
-                    inUse = vehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.InUse),
-                    maintenance = vehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Maintenance),
-                    damaged = vehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Damaged)
+                    total = newVehicles.Count(v => v.StationId == station3.Id),
+                    available = newVehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Available),
+                    booked = newVehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Booked),
+                    inUse = newVehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.InUse),
+                    maintenance = newVehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Maintenance),
+                    damaged = newVehicles.Count(v => v.StationId == station3.Id && v.Status == VehicleStatus.Damaged)
                 }
             }
         }));
