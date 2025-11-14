@@ -80,9 +80,19 @@ public class RentalsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<RentalResponse>), 404)]
     public async Task<IActionResult> GetById(int id)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        
         var rental = await _rentalService.GetRentalByIdAsync(id);
         
         if (rental == null)
+        {
+            return NotFound(ApiResponse<RentalResponse>.ErrorResponse("Không tìm thấy giao dịch thuê xe"));
+        }
+
+        // Authorization check: Verify ownership or staff access (will be done in service)
+        var hasAccess = await _rentalService.VerifyRentalAccessAsync(id, userId, userRole);
+        if (!hasAccess)
         {
             return NotFound(ApiResponse<RentalResponse>.ErrorResponse("Không tìm thấy giao dịch thuê xe"));
         }
@@ -142,8 +152,18 @@ public class RentalsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<object>>), 404)]
     public async Task<IActionResult> GetInspections(int id)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        
         var rental = await _rentalService.GetRentalByIdAsync(id);
         if (rental == null)
+        {
+            return NotFound(ApiResponse<List<object>>.ErrorResponse("Không tìm thấy giao dịch thuê xe"));
+        }
+
+        // Authorization check
+        var hasAccess = await _rentalService.VerifyRentalAccessAsync(id, userId, userRole);
+        if (!hasAccess)
         {
             return NotFound(ApiResponse<List<object>>.ErrorResponse("Không tìm thấy giao dịch thuê xe"));
         }
@@ -160,6 +180,19 @@ public class RentalsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<RentalResponse>>), 200)]
     public async Task<IActionResult> GetByStation(int stationId, [FromQuery] string? status = null)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        
+        // Staff can only view rentals at their own station
+        if (userRole == "StationStaff")
+        {
+            var hasAccess = await _rentalService.VerifyStationAccessAsync(userId, stationId);
+            if (!hasAccess)
+            {
+                return Forbid();
+            }
+        }
+        
         var rentals = await _rentalService.GetStationRentalsAsync(stationId, status);
         return Ok(ApiResponse<List<RentalResponse>>.SuccessResponse(rentals));
     }

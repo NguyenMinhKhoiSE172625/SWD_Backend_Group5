@@ -19,6 +19,18 @@ public class RentalService : IRentalService
 
     public async Task<RentalResponse?> CreateRentalAsync(int userId, int staffId, CreateRentalRequest request)
     {
+        // Validate battery level
+        if (request.PickupBatteryLevel < 0 || request.PickupBatteryLevel > 100)
+        {
+            throw new ArgumentException("Mức pin phải từ 0% đến 100%");
+        }
+
+        // Validate odometer reading
+        if (request.OdometerBeforePickup.HasValue && request.OdometerBeforePickup < 0)
+        {
+            throw new ArgumentException("Số km không thể âm");
+        }
+
         var vehicle = await _context.Vehicles.FindAsync(request.VehicleId);
         if (vehicle == null)
         {
@@ -94,6 +106,30 @@ public class RentalService : IRentalService
 
     public async Task<RentalResponse?> CompleteRentalAsync(int staffId, CompleteRentalRequest request)
     {
+        // Validate return battery level
+        if (request.ReturnBatteryLevel < 0 || request.ReturnBatteryLevel > 100)
+        {
+            throw new ArgumentException("Mức pin phải từ 0% đến 100%");
+        }
+
+        // Validate total distance
+        if (request.TotalDistance.HasValue && request.TotalDistance < 0)
+        {
+            throw new ArgumentException("Quãng đường không thể âm");
+        }
+
+        // Validate odometer reading
+        if (request.OdometerAfterReturn.HasValue && request.OdometerAfterReturn < 0)
+        {
+            throw new ArgumentException("Số km không thể âm");
+        }
+
+        // Validate additional fees
+        if (request.AdditionalFees.HasValue && request.AdditionalFees < 0)
+        {
+            throw new ArgumentException("Phí phụ thu không thể âm");
+        }
+
         var rental = await _context.Rentals
             .Include(r => r.Vehicle)
             .FirstOrDefaultAsync(r => r.Id == request.RentalId);
@@ -111,6 +147,12 @@ public class RentalService : IRentalService
         rental.Status = RentalStatus.Completed;
         rental.ReturnStaffId = staffId;
         rental.UpdatedAt = DateTime.UtcNow;
+
+        // Validate return time is after pickup time
+        if (rental.ReturnTime <= rental.PickupTime)
+        {
+            throw new InvalidOperationException("Thời gian trả xe phải sau thời gian nhận xe");
+        }
 
         // Calculate total amount
         var duration = rental.ReturnTime.Value - rental.PickupTime;
@@ -490,7 +532,44 @@ public class RentalService : IRentalService
 
     private string GenerateRentalCode()
     {
-        return $"RN{DateTime.UtcNow:yyyyMMddHHmmss}{new Random().Next(1000, 9999)}";
+        // Use RandomNumberGenerator for thread-safety and better randomness
+        var randomBytes = new byte[2];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(randomBytes);
+        var randomNumber = Math.Abs(BitConverter.ToInt16(randomBytes, 0)) % 9000 + 1000;
+        return $"RN{DateTime.UtcNow:yyyyMMddHHmmss}{randomNumber}";
+    }
+
+    public async Task<bool> VerifyRentalAccessAsync(int rentalId, int userId, string? userRole)
+    {
+        var rental = await _context.Rentals
+            .Include(r => r.Vehicle)
+            .FirstOrDefaultAsync(r => r.Id == rentalId);
+
+        if (rental == null)
+            return false;
+
+        // Admin can access all
+        if (userRole == "Admin")
+            return true;
+
+        // Renter can only access their own rentals
+        if (userRole == "Renter")
+            return rental.UserId == userId;
+
+        // Staff can access rentals at their station
+        if (userRole == "StationStaff")
+        {
+            var user = await _context.Users.FindAsync(userId);
+            return user?.StationId == rental.Vehicle.StationId;
+        }
+
+        return false;
+    }
+
+    public async Task<bool> VerifyStationAccessAsync(int userId, int stationId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        return user?.StationId == stationId;
     }
 
     private RentalResponse MapToResponse(Rental rental, Vehicle vehicle)

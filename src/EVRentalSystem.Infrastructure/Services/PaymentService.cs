@@ -80,7 +80,11 @@ public class PaymentService : IPaymentService
 
     private string GeneratePaymentCode()
     {
-        return $"PAY{DateTime.UtcNow:yyyyMMddHHmmss}{new Random().Next(1000, 9999)}";
+        // Use RandomNumberGenerator for thread-safety and better randomness
+        var randomBytes = new byte[2];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(randomBytes);
+        var randomNumber = Math.Abs(BitConverter.ToInt16(randomBytes, 0)) % 9000 + 1000;
+        return $"PAY{DateTime.UtcNow:yyyyMMddHHmmss}{randomNumber}";
     }
 
     private PaymentResponse MapToResponse(Payment payment)

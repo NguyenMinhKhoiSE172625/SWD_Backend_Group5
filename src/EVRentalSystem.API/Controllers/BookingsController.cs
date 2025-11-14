@@ -53,11 +53,33 @@ public class BookingsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<BookingResponse>), 404)]
     public async Task<IActionResult> GetById(int id)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        
         var booking = await _bookingService.GetBookingByIdAsync(id);
         
         if (booking == null)
         {
             return NotFound(ApiResponse<BookingResponse>.ErrorResponse("Không tìm thấy đặt xe"));
+        }
+
+        // Authorization check: Only owner, staff at same station, or admin can view
+        if (userRole == "Renter")
+        {
+            var bookingEntity = await _context.Bookings.FindAsync(id);
+            if (bookingEntity?.UserId != userId)
+            {
+                return NotFound(ApiResponse<BookingResponse>.ErrorResponse("Không tìm thấy đặt xe"));
+            }
+        }
+        else if (userRole == "StationStaff")
+        {
+            var user = await _context.Users.FindAsync(userId);
+            var bookingEntity = await _context.Bookings.FindAsync(id);
+            if (user?.StationId != bookingEntity?.StationId)
+            {
+                return NotFound(ApiResponse<BookingResponse>.ErrorResponse("Không tìm thấy đặt xe"));
+            }
         }
 
         return Ok(ApiResponse<BookingResponse>.SuccessResponse(booking));
@@ -147,6 +169,19 @@ public class BookingsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<List<BookingResponse>>), 200)]
     public async Task<IActionResult> GetStationBookings(int stationId)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        
+        // Staff can only view bookings at their own station
+        if (userRole == "StationStaff")
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user?.StationId != stationId)
+            {
+                return Forbid(); // Return 403 for unauthorized station access
+            }
+        }
+        
         var bookings = await _bookingService.GetStationBookingsAsync(stationId);
         return Ok(ApiResponse<List<BookingResponse>>.SuccessResponse(bookings));
     }

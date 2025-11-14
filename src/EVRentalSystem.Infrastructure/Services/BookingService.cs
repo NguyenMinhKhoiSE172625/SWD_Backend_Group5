@@ -18,36 +18,82 @@ public class BookingService : IBookingService
 
     public async Task<BookingResponse?> CreateBookingAsync(int userId, CreateBookingRequest request)
     {
-        var vehicle = await _context.Vehicles
-            .Include(v => v.Station)
-            .FirstOrDefaultAsync(v => v.Id == request.VehicleId);
-
-        if (vehicle == null || vehicle.Status != VehicleStatus.Available)
+        // Validate time inputs
+        if (request.ScheduledPickupTime < DateTime.UtcNow)
         {
-            return null;
+            throw new ArgumentException("Thời gian nhận xe phải là thời điểm trong tương lai");
         }
 
-        var booking = new Booking
+        if (request.ScheduledReturnTime.HasValue && request.ScheduledReturnTime <= request.ScheduledPickupTime)
         {
-            BookingCode = GenerateBookingCode(),
-            UserId = userId,
-            VehicleId = request.VehicleId,
-            StationId = request.StationId,
-            BookingDate = DateTime.UtcNow,
-            ScheduledPickupTime = request.ScheduledPickupTime,
-            ScheduledReturnTime = request.ScheduledReturnTime,
-            Status = BookingStatus.Pending,
-            Notes = request.Notes,
-            CreatedAt = DateTime.UtcNow
-        };
+            throw new ArgumentException("Thời gian trả xe phải sau thời gian nhận xe");
+        }
 
-        vehicle.Status = VehicleStatus.Booked;
-        vehicle.UpdatedAt = DateTime.UtcNow;
+        // Validate reasonable rental duration (max 30 days)
+        if (request.ScheduledReturnTime.HasValue)
+        {
+            var duration = request.ScheduledReturnTime.Value - request.ScheduledPickupTime;
+            if (duration.TotalDays > 30)
+            {
+                throw new ArgumentException("Thời gian thuê tối đa là 30 ngày");
+            }
+        }
 
-        _context.Bookings.Add(booking);
-        await _context.SaveChangesAsync();
+        // Use transaction to prevent race condition
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            // Lock the vehicle row for update to prevent concurrent bookings
+            var vehicle = await _context.Vehicles
+                .Include(v => v.Station)
+                .FirstOrDefaultAsync(v => v.Id == request.VehicleId);
 
-        return MapToResponse(booking, vehicle);
+            if (vehicle == null || vehicle.Status != VehicleStatus.Available)
+            {
+                return null;
+            }
+
+            // Check for overlapping bookings
+            var hasOverlap = await _context.Bookings
+                .Where(b => b.VehicleId == request.VehicleId
+                    && (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed)
+                    && b.ScheduledPickupTime < (request.ScheduledReturnTime ?? request.ScheduledPickupTime.AddDays(1))
+                    && (b.ScheduledReturnTime ?? b.ScheduledPickupTime.AddDays(1)) > request.ScheduledPickupTime)
+                .AnyAsync();
+
+            if (hasOverlap)
+            {
+                throw new InvalidOperationException("Xe đã được đặt trong khoảng thời gian này. Vui lòng chọn thời gian khác.");
+            }
+
+            var booking = new Booking
+            {
+                BookingCode = GenerateBookingCode(),
+                UserId = userId,
+                VehicleId = request.VehicleId,
+                StationId = request.StationId,
+                BookingDate = DateTime.UtcNow,
+                ScheduledPickupTime = request.ScheduledPickupTime,
+                ScheduledReturnTime = request.ScheduledReturnTime,
+                Status = BookingStatus.Pending,
+                Notes = request.Notes,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            vehicle.Status = VehicleStatus.Booked;
+            vehicle.UpdatedAt = DateTime.UtcNow;
+
+            _context.Bookings.Add(booking);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            return MapToResponse(booking, vehicle);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<BookingResponse?> GetBookingByIdAsync(int bookingId)
@@ -98,8 +144,17 @@ public class BookingService : IBookingService
         booking.Status = BookingStatus.Cancelled;
         booking.UpdatedAt = DateTime.UtcNow;
 
-        booking.Vehicle.Status = VehicleStatus.Available;
-        booking.Vehicle.UpdatedAt = DateTime.UtcNow;
+        // Only set vehicle to Available if there are no other active bookings
+        var hasOtherBookings = await _context.Bookings
+            .AnyAsync(b => b.VehicleId == booking.VehicleId
+                && b.Id != bookingId
+                && (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed));
+
+        if (!hasOtherBookings)
+        {
+            booking.Vehicle.Status = VehicleStatus.Available;
+            booking.Vehicle.UpdatedAt = DateTime.UtcNow;
+        }
 
         await _context.SaveChangesAsync();
         return true;
@@ -122,7 +177,11 @@ public class BookingService : IBookingService
 
     private string GenerateBookingCode()
     {
-        return $"BK{DateTime.UtcNow:yyyyMMddHHmmss}{new Random().Next(1000, 9999)}";
+        // Use RandomNumberGenerator for thread-safety and better randomness
+        var randomBytes = new byte[2];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(randomBytes);
+        var randomNumber = Math.Abs(BitConverter.ToInt16(randomBytes, 0)) % 9000 + 1000;
+        return $"BK{DateTime.UtcNow:yyyyMMddHHmmss}{randomNumber}";
     }
 
     public async Task<object?> GetBookingForCheckoutAsync(int bookingId)

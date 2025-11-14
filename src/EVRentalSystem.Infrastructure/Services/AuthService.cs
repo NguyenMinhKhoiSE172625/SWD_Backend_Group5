@@ -110,13 +110,16 @@ public class AuthService : IAuthService
             return true;
         }
 
-        // Generate reset token
+        // Generate reset token (plain text to send via email)
         var resetToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
             .Replace("+", "-")
             .Replace("/", "_")
             .Replace("=", "");
 
-        user.PasswordResetToken = resetToken;
+        // Hash the token before storing in database for security
+        var hashedToken = BCrypt.Net.BCrypt.HashPassword(resetToken);
+        
+        user.PasswordResetToken = hashedToken;
         user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1); // Token valid for 1 hour
         user.UpdatedAt = DateTime.UtcNow;
 
@@ -135,11 +138,17 @@ public class AuthService : IAuthService
     {
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Email == request.Email 
-                && u.PasswordResetToken == request.Token
+                && u.PasswordResetToken != null
                 && u.PasswordResetTokenExpiry.HasValue
                 && u.PasswordResetTokenExpiry.Value > DateTime.UtcNow);
 
         if (user == null)
+        {
+            return false;
+        }
+
+        // Verify the token using BCrypt (since it's hashed in DB)
+        if (!BCrypt.Net.BCrypt.Verify(request.Token, user.PasswordResetToken))
         {
             return false;
         }
