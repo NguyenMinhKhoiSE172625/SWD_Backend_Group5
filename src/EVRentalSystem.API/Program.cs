@@ -145,8 +145,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 });
 
+// Add Email Settings
+builder.Services.Configure<EVRentalSystem.Application.DTOs.Common.EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+
 // Add Services
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IRentalService, RentalService>();

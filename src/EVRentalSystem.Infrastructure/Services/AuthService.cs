@@ -11,11 +11,13 @@ public class AuthService : IAuthService
 {
     private readonly ApplicationDbContext _context;
     private readonly IJwtService _jwtService;
+    private readonly IEmailService _emailService;
 
-    public AuthService(ApplicationDbContext context, IJwtService jwtService)
+    public AuthService(ApplicationDbContext context, IJwtService jwtService, IEmailService emailService)
     {
         _context = context;
         _jwtService = jwtService;
+        _emailService = emailService;
     }
 
     public async Task<LoginResponse?> RegisterAsync(RegisterRequest request)
@@ -41,6 +43,9 @@ public class AuthService : IAuthService
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
+
+        // Gửi email chào mừng (không chờ kết quả để không làm chậm response)
+        _ = _emailService.SendWelcomeEmailAsync(user.Email, user.FullName);
 
         var token = _jwtService.GenerateToken(user);
 
@@ -125,11 +130,16 @@ public class AuthService : IAuthService
 
         await _context.SaveChangesAsync();
 
-        // TODO: Send email with reset link
-        // For now, log the token (in production, send via email service)
-        // Example reset link: https://yourapp.com/reset-password?token={resetToken}&email={email}
-        Console.WriteLine($"Password reset token for {user.Email}: {resetToken}");
-        Console.WriteLine($"Reset link: /reset-password?token={resetToken}&email={user.Email}");
+        // Gửi email reset password
+        var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email, resetToken, user.FullName);
+        
+        if (!emailSent)
+        {
+            // Fallback: Log token nếu email không gửi được (development)
+            Console.WriteLine($"⚠️ Email service chưa được cấu hình hoặc gửi thất bại.");
+            Console.WriteLine($"Password reset token for {user.Email}: {resetToken}");
+            Console.WriteLine($"Reset link: /reset-password?token={resetToken}&email={user.Email}");
+        }
 
         return true;
     }
