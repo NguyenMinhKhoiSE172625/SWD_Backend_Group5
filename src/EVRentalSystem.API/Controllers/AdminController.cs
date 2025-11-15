@@ -85,6 +85,50 @@ public class AdminController : ControllerBase
     }
 
     /// <summary>
+    /// Tạo tài khoản staff mới (Admin)
+    /// </summary>
+    [HttpPost("staff")]
+    [ProducesResponseType(typeof(ApiResponse<StaffResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    public async Task<IActionResult> CreateStaff([FromBody] CreateStaffRequest request)
+    {
+        var staff = await _adminService.CreateStaffAsync(request);
+        
+        if (staff == null)
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse("Email đã tồn tại hoặc Station không hợp lệ"));
+        }
+
+        return Ok(ApiResponse<StaffResponse>.SuccessResponse(staff, "Tạo tài khoản staff thành công"));
+    }
+
+    /// <summary>
+    /// Xóa tài khoản user (Admin)
+    /// </summary>
+    [HttpDelete("users/{userId}")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), 404)]
+    public async Task<IActionResult> DeleteUser([FromRoute] int userId)
+    {
+        if (userId <= 0)
+        {
+            return BadRequest(ApiResponse<bool>.ErrorResponse("ID người dùng không hợp lệ"));
+        }
+
+        var result = await _adminService.DeleteUserAsync(userId);
+        
+        if (!result)
+        {
+            return BadRequest(ApiResponse<bool>.ErrorResponse(
+                "Không thể xóa người dùng. User không tồn tại hoặc đang có booking/rental đang hoạt động"
+            ));
+        }
+
+        return Ok(ApiResponse<bool>.SuccessResponse(true, "Xóa tài khoản thành công"));
+    }
+
+    /// <summary>
     /// Test email service - Gửi email test (Admin only - Development)
     /// </summary>
     [HttpPost("test-email")]

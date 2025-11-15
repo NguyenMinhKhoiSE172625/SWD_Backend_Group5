@@ -173,5 +173,61 @@ public class AuthService : IAuthService
 
         return true;
     }
+
+    public async Task<UserProfileResponse?> GetProfileAsync(int userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        
+        if (user == null)
+        {
+            return null;
+        }
+
+        return new UserProfileResponse
+        {
+            Id = user.Id,
+            FullName = user.FullName,
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            Role = user.Role.ToString(),
+            DriverLicenseNumber = user.DriverLicenseNumber,
+            IdCardNumber = user.IdCardNumber,
+            IsVerified = user.IsVerified,
+            StationId = user.StationId,
+            CreatedAt = user.CreatedAt
+        };
+    }
+
+    public async Task<UserProfileResponse?> UpdateProfileAsync(int userId, UpdateProfileRequest request)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        
+        if (user == null)
+        {
+            return null;
+        }
+
+        user.FullName = request.FullName;
+        user.PhoneNumber = request.PhoneNumber;
+        user.DriverLicenseNumber = request.DriverLicenseNumber;
+        user.IdCardNumber = request.IdCardNumber;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return new UserProfileResponse
+        {
+            Id = user.Id,
+            FullName = user.FullName,
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            Role = user.Role.ToString(),
+            DriverLicenseNumber = user.DriverLicenseNumber,
+            IdCardNumber = user.IdCardNumber,
+            IsVerified = user.IsVerified,
+            StationId = user.StationId,
+            CreatedAt = user.CreatedAt
+        };
+    }
 }
 

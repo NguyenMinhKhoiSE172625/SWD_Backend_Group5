@@ -136,5 +136,46 @@ public class AuthController : ControllerBase
 
         return Ok(ApiResponse<bool>.SuccessResponse(true, "Đặt lại mật khẩu thành công"));
     }
+
+    /// <summary>
+    /// Lấy thông tin profile của user hiện tại
+    /// </summary>
+    [HttpGet("profile")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<UserProfileResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<UserProfileResponse>), 404)]
+    public async Task<IActionResult> GetProfile()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var profile = await _authService.GetProfileAsync(userId);
+        
+        if (profile == null)
+        {
+            return NotFound(ApiResponse<UserProfileResponse>.ErrorResponse("Không tìm thấy thông tin người dùng"));
+        }
+
+        return Ok(ApiResponse<UserProfileResponse>.SuccessResponse(profile));
+    }
+
+    /// <summary>
+    /// Cập nhật thông tin profile của user hiện tại
+    /// </summary>
+    [HttpPut("profile")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<UserProfileResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<UserProfileResponse>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<UserProfileResponse>), 404)]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var profile = await _authService.UpdateProfileAsync(userId, request);
+        
+        if (profile == null)
+        {
+            return NotFound(ApiResponse<UserProfileResponse>.ErrorResponse("Không tìm thấy thông tin người dùng"));
+        }
+
+        return Ok(ApiResponse<UserProfileResponse>.SuccessResponse(profile, "Cập nhật thông tin thành công"));
+    }
 }
 

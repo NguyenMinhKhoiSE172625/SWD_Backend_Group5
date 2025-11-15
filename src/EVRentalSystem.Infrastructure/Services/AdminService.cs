@@ -1,5 +1,6 @@
 using EVRentalSystem.Application.DTOs.Admin;
 using EVRentalSystem.Application.Interfaces;
+using EVRentalSystem.Domain.Entities;
 using EVRentalSystem.Domain.Enums;
 using EVRentalSystem.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -9,10 +10,12 @@ namespace EVRentalSystem.Infrastructure.Services;
 public class AdminService : IAdminService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IEmailService _emailService;
 
-    public AdminService(ApplicationDbContext context)
+    public AdminService(ApplicationDbContext context, IEmailService emailService)
     {
         _context = context;
+        _emailService = emailService;
     }
 
     public async Task<DashboardResponse> GetDashboardAsync()
@@ -179,6 +182,83 @@ public class AdminService : IAdminService
             .ToList();
 
         return popularVehicles;
+    }
+
+    public async Task<StaffResponse?> CreateStaffAsync(CreateStaffRequest request)
+    {
+        // Kiểm tra email đã tồn tại
+        if (await _context.Users.AnyAsync(u => u.Email == request.Email))
+        {
+            return null;
+        }
+
+        // Kiểm tra station có tồn tại
+        var station = await _context.Stations.FindAsync(request.StationId);
+        if (station == null)
+        {
+            return null;
+        }
+
+        var staff = new User
+        {
+            FullName = request.FullName,
+            Email = request.Email,
+            PhoneNumber = request.PhoneNumber,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            Role = UserRole.StationStaff,
+            StationId = request.StationId,
+            IsVerified = true, // Staff được tạo bởi admin nên tự động verified
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Users.Add(staff);
+        await _context.SaveChangesAsync();
+
+        // Gửi email chào mừng (không chờ kết quả)
+        _ = _emailService.SendWelcomeEmailAsync(staff.Email, staff.FullName);
+
+        return new StaffResponse
+        {
+            Id = staff.Id,
+            FullName = staff.FullName,
+            Email = staff.Email,
+            PhoneNumber = staff.PhoneNumber,
+            Role = staff.Role.ToString(),
+            StationId = staff.StationId,
+            StationName = station.Name,
+            CreatedAt = staff.CreatedAt
+        };
+    }
+
+    public async Task<bool> DeleteUserAsync(int userId)
+    {
+        var user = await _context.Users
+            .Include(u => u.Bookings)
+            .Include(u => u.Rentals)
+            .Include(u => u.Payments)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+        {
+            return false;
+        }
+
+        // Không cho phép xóa user nếu có rental đang active
+        if (user.Rentals.Any(r => r.Status == RentalStatus.Active))
+        {
+            return false;
+        }
+
+        // Không cho phép xóa user nếu có booking đang pending hoặc confirmed
+        if (user.Bookings.Any(b => b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed))
+        {
+            return false;
+        }
+
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync();
+
+        return true;
     }
 }
 

@@ -10,5 +10,7 @@ public interface IAdminService
     Task<UserReportResponse> GetUserReportAsync();
     Task<BookingAnalyticsResponse> GetBookingAnalyticsAsync();
     Task<List<VehicleUtilizationResponse>> GetPopularVehiclesAsync(int topCount = 10);
+    Task<StaffResponse?> CreateStaffAsync(CreateStaffRequest request);
+    Task<bool> DeleteUserAsync(int userId);
 }
 
