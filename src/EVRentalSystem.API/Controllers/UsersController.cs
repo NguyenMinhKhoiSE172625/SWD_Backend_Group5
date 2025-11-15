@@ -1,4 +1,5 @@
 using EVRentalSystem.API.Filters;
+using EVRentalSystem.Application.DTOs.Auth;
 using EVRentalSystem.Application.DTOs.Common;
 using EVRentalSystem.Application.Interfaces;
 using EVRentalSystem.Infrastructure.Data;
@@ -76,12 +77,10 @@ public class UsersController : ControllerBase
             return NotFound(ApiResponse<object>.ErrorResponse("Không tìm thấy người dùng"));
         }
 
-        user.FullName = request.FullName ?? user.FullName;
-        user.PhoneNumber = request.PhoneNumber ?? user.PhoneNumber;
-        user.DriverLicenseNumber = request.DriverLicenseNumber ?? user.DriverLicenseNumber;
-        user.DriverLicenseImageUrl = request.DriverLicenseImageUrl ?? user.DriverLicenseImageUrl;
-        user.IdCardNumber = request.IdCardNumber ?? user.IdCardNumber;
-        user.IdCardImageUrl = request.IdCardImageUrl ?? user.IdCardImageUrl;
+        user.FullName = request.FullName;
+        user.PhoneNumber = request.PhoneNumber;
+        user.DriverLicenseNumber = request.DriverLicenseNumber;
+        user.IdCardNumber = request.IdCardNumber;
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -93,9 +92,7 @@ public class UsersController : ControllerBase
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
             DriverLicenseNumber = user.DriverLicenseNumber,
-            DriverLicenseImageUrl = user.DriverLicenseImageUrl,
             IdCardNumber = user.IdCardNumber,
-            IdCardImageUrl = user.IdCardImageUrl,
             IsVerified = user.IsVerified
         };
 
@@ -139,15 +136,5 @@ public class UsersController : ControllerBase
 
         return Ok(ApiResponse<object>.SuccessResponse(userInfo));
     }
-}
-
-public class UpdateProfileRequest
-{
-    public string? FullName { get; set; }
-    public string? PhoneNumber { get; set; }
-    public string? DriverLicenseNumber { get; set; }
-    public string? DriverLicenseImageUrl { get; set; }
-    public string? IdCardNumber { get; set; }
-    public string? IdCardImageUrl { get; set; }
 }
 
