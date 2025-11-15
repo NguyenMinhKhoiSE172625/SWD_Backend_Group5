@@ -426,7 +426,12 @@ public class RentalService : IRentalService
             Odometer = i.OdometerReading,
             BatteryLevel = i.IsPickup ? i.Rental.PickupBatteryLevel : i.Rental.ReturnBatteryLevel,
             Notes = i.Notes,
-            DamageReport = i.DamageReport
+            DamageReport = i.DamageReport,
+            ImageUrls = string.IsNullOrEmpty(i.ImageUrls)
+                ? new List<string>()
+                : JsonSerializer.Deserialize<List<string>>(i.ImageUrls) ?? new List<string>(),
+            RenterSignature = i.RenterSignature,
+            StaffSignature = i.StaffSignature
         }).ToList();
 
         return new
