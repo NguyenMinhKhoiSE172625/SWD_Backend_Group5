@@ -1,8 +1,10 @@
 using EVRentalSystem.Application.DTOs.Admin;
 using EVRentalSystem.Application.DTOs.Common;
 using EVRentalSystem.Application.Interfaces;
+using EVRentalSystem.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace EVRentalSystem.API.Controllers;
 
@@ -126,6 +128,136 @@ public class AdminController : ControllerBase
         }
 
         return Ok(ApiResponse<bool>.SuccessResponse(true, "Xóa tài khoản thành công"));
+    }
+
+    /// <summary>
+    /// Seed vehicles với booking tự động (Admin only - Development)
+    /// </summary>
+    [HttpPost("seed-vehicles")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    public async Task<IActionResult> SeedVehicles([FromServices] ApplicationDbContext context)
+    {
+        var seededVehicles = new List<object>();
+        var seededBookings = new List<object>();
+
+        // Lấy station 1
+        var station = await context.Stations.FindAsync(1);
+        if (station == null)
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse("Không tìm thấy Station ID 1. Vui lòng tạo station trước."));
+        }
+
+        // Lấy danh sách users (renters) để tạo booking
+        var renters = await context.Users
+            .Where(u => u.Role == Domain.Enums.UserRole.Renter)
+            .ToListAsync();
+        
+        if (!renters.Any())
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse("Không có renter nào trong hệ thống. Vui lòng tạo user trước."));
+        }
+
+        var random = new Random();
+        var vehicleData = new[]
+        {
+            new { Brand = "VinFast", Model = "Klara S", Year = 2023, Color = "Đỏ", BatteryCapacity = 100, PricePerHour = 30000m, PricePerDay = 200000m },
+            new { Brand = "VinFast", Model = "Evo 200", Year = 2024, Color = "Xanh", BatteryCapacity = 100, PricePerHour = 35000m, PricePerDay = 250000m },
+            new { Brand = "Honda", Model = "Vision", Year = 2023, Color = "Trắng", BatteryCapacity = 100, PricePerHour = 25000m, PricePerDay = 180000m },
+            new { Brand = "Yamaha", Model = "Janus", Year = 2023, Color = "Đen", BatteryCapacity = 100, PricePerHour = 28000m, PricePerDay = 190000m },
+            new { Brand = "VinFast", Model = "Theon S", Year = 2024, Color = "Xám", BatteryCapacity = 100, PricePerHour = 40000m, PricePerDay = 280000m },
+            new { Brand = "VinFast", Model = "Feliz S", Year = 2023, Color = "Vàng", BatteryCapacity = 100, PricePerHour = 32000m, PricePerDay = 220000m },
+            new { Brand = "Honda", Model = "SH Mode", Year = 2024, Color = "Xanh dương", BatteryCapacity = 100, PricePerHour = 38000m, PricePerDay = 260000m },
+            new { Brand = "Yamaha", Model = "Sirius", Year = 2023, Color = "Đỏ đô", BatteryCapacity = 100, PricePerHour = 27000m, PricePerDay = 185000m },
+            new { Brand = "VinFast", Model = "Ludo", Year = 2024, Color = "Hồng", BatteryCapacity = 100, PricePerHour = 33000m, PricePerDay = 230000m },
+            new { Brand = "VinFast", Model = "Impes", Year = 2024, Color = "Bạc", BatteryCapacity = 100, PricePerHour = 45000m, PricePerDay = 300000m }
+        };
+
+        foreach (var vData in vehicleData)
+        {
+            var licensePlate = $"{random.Next(10, 99)}{(char)random.Next('A', 'Z' + 1)}{random.Next(1, 9)}-{random.Next(10000, 99999)}";
+
+            // Kiểm tra biển số đã tồn tại chưa
+            if (await context.Vehicles.AnyAsync(v => v.LicensePlate == licensePlate))
+            {
+                continue;
+            }
+
+            var vehicle = new Domain.Entities.Vehicle
+            {
+                LicensePlate = licensePlate,
+                Model = vData.Model,
+                Brand = vData.Brand,
+                Year = vData.Year,
+                Color = vData.Color,
+                BatteryCapacity = vData.BatteryCapacity,
+                PricePerHour = vData.PricePerHour,
+                PricePerDay = vData.PricePerDay,
+                Status = Domain.Enums.VehicleStatus.Booked, // Tất cả xe đều Booked
+                ImageUrl = $"https://placehold.co/600x400/png?text={vData.Brand}+{vData.Model}",
+                Description = $"Xe {vData.Brand} {vData.Model} {vData.Year} màu {vData.Color}",
+                StationId = 1, // Chỉ thêm vào station 1
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.Vehicles.Add(vehicle);
+            await context.SaveChangesAsync(); // Save để có vehicle.Id
+
+            // Tạo booking cho xe này
+            var renter = renters[random.Next(renters.Count)];
+            var scheduledPickupTime = DateTime.UtcNow.AddHours(random.Next(1, 48)); // 1-48 giờ tới
+            var scheduledReturnTime = scheduledPickupTime.AddDays(random.Next(1, 7)); // 1-7 ngày sau
+
+            var booking = new Domain.Entities.Booking
+            {
+                BookingCode = GenerateBookingCode(),
+                UserId = renter.Id,
+                VehicleId = vehicle.Id,
+                StationId = 1, // Station 1
+                BookingDate = DateTime.UtcNow,
+                ScheduledPickupTime = scheduledPickupTime,
+                ScheduledReturnTime = scheduledReturnTime,
+                Status = Domain.Enums.BookingStatus.Confirmed, // Confirmed để logic đúng
+                Notes = $"Booking tự động cho xe {vehicle.LicensePlate}",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.Bookings.Add(booking);
+            await context.SaveChangesAsync();
+
+            seededVehicles.Add(new
+            {
+                Id = vehicle.Id,
+                LicensePlate = vehicle.LicensePlate,
+                Model = $"{vehicle.Brand} {vehicle.Model}",
+                Status = vehicle.Status.ToString(),
+                StationName = station.Name
+            });
+
+            seededBookings.Add(new
+            {
+                Id = booking.Id,
+                BookingCode = booking.BookingCode,
+                VehicleLicensePlate = vehicle.LicensePlate,
+                CustomerName = renter.FullName,
+                ScheduledPickupTime = booking.ScheduledPickupTime,
+                Status = booking.Status.ToString()
+            });
+        }
+
+        return Ok(ApiResponse<object>.SuccessResponse(new
+        {
+            Message = $"Đã seed {seededVehicles.Count} xe và {seededBookings.Count} booking",
+            Vehicles = seededVehicles,
+            Bookings = seededBookings
+        }));
+    }
+
+    private string GenerateBookingCode()
+    {
+        var randomBytes = new byte[2];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(randomBytes);
+        var randomNumber = Math.Abs(BitConverter.ToInt16(randomBytes, 0)) % 9000 + 1000;
+        return $"BK{DateTime.UtcNow:yyyyMMddHHmmss}{randomNumber}";
     }
 
     /// <summary>
